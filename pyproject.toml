@@ -50,7 +50,7 @@ dependencies = [
 
 # Optional dependencies =======================================================
 [project.optional-dependencies]
-dev = [ "pyxu[dev]", ]
+dev = [ "pyxu[dev]", "pyxu[complete]"]
 
 # Get version info from Git ===================================================
 [tool.hatch.version]
