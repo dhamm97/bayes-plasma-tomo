@@ -3,6 +3,9 @@ import numpy as np
 import src.tomo_fusion.helpers as tools
 import skimage.transform as skimt
 from pyxu_diffops.operator import AnisCoherenceEnhancingDiffusionOp
+import pyxu.util as pycu
+import sys
+import argparse
 import pyxu.abc as pxa
 import scipy.sparse as sp
 
@@ -25,7 +28,9 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
                                                   clip_each_iter=False, clipping_outside_core=False,
                                                   psi_upperbound_source_rel=0.4,
                                                   psi_lowerbound_source_rel=1, xpoint_idx_base_psi=90,
-                                                  diff_method_struct_tens="gd", nsources=1):
+                                                  diff_method_struct_tens="gd", nsources=1, gpu=False):
+    if gpu:
+        import cupy as cp
     # define bounds for psi defining allowed source locations
     psi_upperbound_source = psi_upperbound_source_rel * np.min(Bfield)
     psi_lowerbound_source = psi_lowerbound_source_rel * np.min(Bfield)
@@ -101,7 +106,7 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
                 alpha_random_values[i] = np.exp(np.random.uniform(alpha_bounds[bin, 0],
                                                                   alpha_bounds[bin, 1]))
                 if alpha_random_values[i] < 5e-3:
-                    lower_bound_diffusive_steps = int(5e3)
+                    lower_bound_diffusive_steps = steps_nb_factor * int(3e3)
                 else:
                     lower_bound_diffusive_steps = diffusive_steps_bounds[bin, 0]
                 diffusive_steps[i] = np.random.randint(lower_bound_diffusive_steps,
@@ -118,10 +123,13 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
             # plt.contour(psi, origin="lower", levels=15, antialiased=True, colors="r", linewidths=0.2)
             # plt.show()
 
+        if gpu:
+            psi = cp.array(psi)
+
         reg_fct = AnisCoherenceEnhancingDiffusionOp(dim_shape=dim_shape, alpha=alpha_random_values[i], m=1,
                                                     sigma_gd_st=1 * sampling, smooth_sigma_st=2 * sampling,
                                                     sampling=sampling, diff_method_struct_tens=diff_method_struct_tens,
-                                                    freezing_arr=psi, matrix_based_impl=True)
+                                                    freezing_arr=psi, matrix_based_impl=True, gpu=gpu)
 
         # print information
         print("Phantom {}: ".format(i))
@@ -130,6 +138,9 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
 
         # generate sample, adapting number of diffusive steps for "extreme" initialization locations
         x0 = np.expand_dims(x0, 0)
+        if gpu:
+            x0 = cp.array(x0)
+            mask_core = cp.array(mask_core)
         for s in range(diffusive_steps[i]):
             # 2/L with L=8 seems enough, L=8 good estimate of diff_lipschitz constant of reg_fct in principle...
             x0 -= 0.95 * (0.25 * (sampling ** 2)) * reg_fct.grad(x0)
@@ -151,6 +162,9 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
         # normalize sample to 1
         x0 /= np.max(x0)
         # append sample and magnetic equilibrium
+        if gpu:
+            x0 = x0.get()
+            psi = psi.get()
         sxr_samples.append(x0.reshape(dim_shape))
         psis.append(psi)
 
@@ -171,17 +185,23 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
     return sxr_samples, psis
 
 
-B_solps = np.load('../../tomo_fusion/phantoms/Bfield_solps/psi_eq_SOLPS.npy')
+if __name__ == '__main__':
+    # parse -gpu argument
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-gpu', action='store_true', default=False, help='Use GPU')
+    args = parser.parse_args()
 
-samples_solps_finer_discr, psis_solps_finer_discr = generate_sxr_samples_arbitrary_discretization(100*B_solps, dim_shape=(1, 240, 80), sampling=0.00625, steps_nb_factor=2,
-                                                nsamples=int(2e3), seed=0, save=True, save_dir="sxr_samples_fine_discretization",
-                                                clip_each_iter=True, clipping_outside_core=True,
-                                                diff_method_struct_tens="gd")
+    B_solps = np.load('../../tomo_fusion/phantoms/Bfield_solps/psi_eq_SOLPS.npy')
 
-samples_solps, psis_solps = generate_sxr_samples_arbitrary_discretization(100*B_solps, dim_shape=(1, 120, 40), sampling=0.0125,
-                                                nsamples=int(2e3), seed=0, save=True, save_dir="sxr_samples",
-                                                clip_each_iter=True, clipping_outside_core=True,
-                                                diff_method_struct_tens="gd")
+    _, _ = generate_sxr_samples_arbitrary_discretization(100*B_solps, dim_shape=(1, 240, 80), sampling=0.00625, steps_nb_factor=2,
+                                                    nsamples=int(2e3), seed=0, save=True, save_dir="sxr_samples_fine_discretization",
+                                                    clip_each_iter=True, clipping_outside_core=True,
+                                                    diff_method_struct_tens="gd", gpu=args.gpu)
+
+    _, _ = generate_sxr_samples_arbitrary_discretization(100*B_solps, dim_shape=(1, 120, 40), sampling=0.0125,
+                                                    nsamples=int(2e3), seed=0, save=True, save_dir="sxr_samples",
+                                                    clip_each_iter=True, clipping_outside_core=True,
+                                                    diff_method_struct_tens="gd", gpu=args.gpu)
 
 
 
