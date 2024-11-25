@@ -8,7 +8,7 @@ import sys
 import argparse
 import pyxu.abc as pxa
 import scipy.sparse as sp
-
+import time
 
 def define_clipping_mask(psi, arg_shape=(120,40), xpoint_idx_basi_psi=90, trim_values_x=[0, 120], psi_threshold=0):
     mask = np.where(psi<psi_threshold)
@@ -80,7 +80,7 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
         sources_idx = np.random.randint(0, nonzero_elems - 1, size=(nsources,))
 
         # create source image
-        x0 = np.zeros((dim_shape[1], dim_shape[2]))
+        x0 = np.zeros((dim_shape[1], dim_shape[2]), dtype=Bfield.dtype)
         for j in range(nsources):
             x0[mask_locs[0][sources_idx[j]]:mask_locs[0][sources_idx[j]] + 2,
             mask_locs[1][sources_idx[j]]:mask_locs[1][sources_idx[j]] + 2] = 1
@@ -126,10 +126,19 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
         if gpu:
             psi = cp.array(psi)
 
+        #breakpoint()
+        #st = time.time()
+
         reg_fct = AnisCoherenceEnhancingDiffusionOp(dim_shape=dim_shape, alpha=alpha_random_values[i], m=1,
                                                     sigma_gd_st=1 * sampling, smooth_sigma_st=2 * sampling,
                                                     sampling=sampling, diff_method_struct_tens=diff_method_struct_tens,
-                                                    freezing_arr=psi, matrix_based_impl=True, gpu=gpu)
+                                                    freezing_arr=psi, matrix_based_impl=True, gpu=gpu, dtype=Bfield.dtype)
+        #print(reg_fct._grad_matrix_based.mat.dtype, type(reg_fct._grad_matrix_based.mat))
+        #reg_fct._grad_matrix_based.mat = reg_fct._grad_matrix_based.mat.astype(Bfield.dtype)
+        #reg_fct._grad_matrix_based.mat = sp.csr_matrix(reg_fct._grad_matrix_based.mat).
+
+        #print("instantiation-time", time.time()-st)
+        #st=time.time()
 
         # print information
         print("Phantom {}: ".format(i))
@@ -137,18 +146,24 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
         print("\n")
 
         # generate sample, adapting number of diffusive steps for "extreme" initialization locations
-        x0 = np.expand_dims(x0, 0)
+        #x0 = np.expand_dims(x0, 0)
+        x0 = x0.flatten()
+        if clipping_outside_core:
+            mask_core = mask_core.flatten()
         if gpu:
             x0 = cp.array(x0)
-            mask_core = cp.array(mask_core)
+            if clipping_outside_core:
+                mask_core = cp.array(mask_core)
+        #print("loading-time", time.time()-st)
         for s in range(diffusive_steps[i]):
-            # 2/L with L=8 seems enough, L=8 good estimate of diff_lipschitz constant of reg_fct in principle...
-            x0 -= 0.95 * (0.25 * (sampling ** 2)) * reg_fct.grad(x0)
+            # 2/L with L=8 seems enough, L=8 good estimate of diff_lipschitz constant of reg_fct in principle..
+            #x0 -= 0.95 * (0.25 * (sampling ** 2)) * reg_fct.grad(x0)
+            x0 -= 0.95 * (0.25 * (sampling ** 2)) * reg_fct._grad_matrix_based.mat.dot(x0)
+            #x0 -= 0.95 * (0.25 * (sampling ** 2)) * reg_fct._grad_matrix_based.mat@x0
             if clip_each_iter:
                 x0[x0 < 0] = 0
             if clipping_outside_core:
                 x0 *= mask_core
-
             # if s % 1000 == 0:
             #     plt.imshow(x0.squeeze())
             #     plt.colorbar()
@@ -159,14 +174,16 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
         if clipping_outside_core:
             x0 *= mask_core
 
+        #print("loop-time", time.time() - st)
         # normalize sample to 1
-        x0 /= np.max(x0)
+        x0 /= x0.max()
         # append sample and magnetic equilibrium
         if gpu:
             x0 = x0.get()
             psi = psi.get()
         sxr_samples.append(x0.reshape(dim_shape))
         psis.append(psi)
+        #print("loop-get-time", time.time()-st)
 
         # # save information
         if save:
@@ -181,7 +198,8 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
             np.save(save_dir + '/psis_at_source.npy', psis_at_source)
             np.save(save_dir + '/trimming_values.npy', trimming_values)
             np.save(save_dir + '/source_loc.npy', source_loc)
-
+        #print("loop-get-save-time", time.time()-st)
+        #breakpoint()
     return sxr_samples, psis
 
 
@@ -190,6 +208,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-gpu', action='store_true', default=False, help='Use GPU')
     args = parser.parse_args()
+    print(args.gpu)
 
     B_solps = np.load('../../tomo_fusion/phantoms/Bfield_solps/psi_eq_SOLPS.npy')
 
