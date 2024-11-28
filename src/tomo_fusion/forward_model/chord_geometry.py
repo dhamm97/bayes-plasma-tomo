@@ -2,7 +2,7 @@ import numpy as np
 import scipy.io as scio
 import os
 
-import tomo_fusion.forward_model.LoS_handling as LoS
+import src.tomo_fusion.forward_model.LoS_handling as LoS
 
 
 class RADCAM_system:
@@ -19,7 +19,7 @@ class RADCAM_system:
         self.axuv_ychords = axuv_chords[round(axuv_chords.shape[0] / 2):, :]
         # tiles coordinates
         self.x_left_tile = 0.624
-        self.x_right_tile = 1.138  # 1.124 approximation used for square pixels
+        self.x_right_tile = 1.135#1.138(1.138 was what I had so far, which brought small discrepancy with spc matrix... now almost identical!)  # 1.124 approximation used for square pixels
         self.y_lower_tile = -0.75
         self.y_upper_tile = 0.75
         self.tile_extent = np.array(

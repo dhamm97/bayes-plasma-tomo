@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import PathPatch
 from matplotlib.path import Path
 import numpy as np
-import tomo_fusion.forward_model.chord_geometry as geom
+import src.tomo_fusion.forward_model.chord_geometry as geom
 
 
 def shift_tcv_coords(x_points, y_points):
@@ -116,7 +116,7 @@ def LineCellIntersections(p, theta, pixel_origin=np.zeros(2), hx=1.0, hy=1.0):
     return P1, P2
 
 
-def plot_LoS(LoS_params, Lr=0.6, Lz=1.6, center=[0.3, 0.8]):
+def plot_LoS(LoS_params, Lr=0.5, Lz=1.5, center=[0.3, 0.8]):
     r = np.linspace(0, Lr, 10)
     plt.figure(figsize=(2.5, 6))
     for i in range(LoS_params.shape[0]):
@@ -136,7 +136,7 @@ def plot_LoS(LoS_params, Lr=0.6, Lz=1.6, center=[0.3, 0.8]):
     plt.title("Lines of Sight", fontsize=20)
 
 
-def plot_LoS_ax(LoS_params, ax, Lr=0.6, Lz=1.6, center=[0.3, 0.8]):
+def plot_LoS_ax(LoS_params, ax, Lr=0.5, Lz=1.5, center=[0.3, 0.8]):
     r = np.linspace(0, Lr, 10)
     for i in range(LoS_params.shape[0]):
         if np.isclose(np.tan(LoS_params[i, 1]), 0, atol=1e-6):
@@ -150,7 +150,7 @@ def plot_LoS_ax(LoS_params, ax, Lr=0.6, Lz=1.6, center=[0.3, 0.8]):
     ax.set_ylim([0, Lz])
 
 
-def LoS_extrema_from_LoS_params(LoS_params, Lr=0.6, Lz=1.6, h=np.array([0.1, 0.1]), convert_to_image_coordinates=False):
+def LoS_extrema_from_LoS_params(LoS_params, Lr=0.5, Lz=1.5, h=np.array([0.1, 0.1]), convert_to_image_coordinates=False):
     """
     Function receives (p,theta) parametrization wrt centerpoint. It:
     1. converts parameters into (p,theta)-parametrization wrt lower-left corner (cartesian origin)
@@ -203,7 +203,7 @@ def LoS_extrema_from_LoS_params(LoS_params, Lr=0.6, Lz=1.6, h=np.array([0.1, 0.1
     return startpoints, endpoints, non_intersecting_indices
 
 
-def cartesian_to_image_coordinates(startpoints, endpoints, Lz=1.6, h=np.array([0.1, 0.1])):
+def cartesian_to_image_coordinates(startpoints, endpoints, Lz=1.5, h=np.array([0.1, 0.1])):
     if h.size == 1:
         h = np.array([h, h])
     startpoints = np.flip(startpoints, axis=1)

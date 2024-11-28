@@ -99,10 +99,10 @@ class RadonOpLines(pyca.LinOp):
         endpoints: np.ndarray,
         arg_shape: np.ndarray,
         integration_step: float,
-        h: float,
+        h: np.ndarray,
         #Lz: float = 1.5,
     ):
-        super().__init__(shape=(startpoints.shape[0], round(arg_shape[0] * arg_shape[1])))
+        super().__init__(codim_shape=(startpoints.shape[0],), dim_shape=(round(arg_shape[0] * arg_shape[1]),))
         # following if condition was introduced to handle case of actual LoS from radcam but is wrong since chosen
         # condition is wrong. think and fix.
         # if startpoints[0, 0] >= 0 and endpoints[0, 0] >= 0:
@@ -155,7 +155,7 @@ class RadonOpLines(pyca.LinOp):
         # coeff_vals_unique = np.array([np.sum(group) for group in grouped_coeff_vals])
         # old code
         pixel_locs_unique, coeff_vals_unique = npi.group_by(pixel_locs_flat).sum(coeff_vals)
-        return pixel_locs_unique, coeff_vals_unique * np.linalg.norm(self.hstep[n]) * self.h
+        return pixel_locs_unique, coeff_vals_unique * np.linalg.norm(self.hstep[n]*self.h)
         # sort_indices = np.argsort(pixel_locs_flat)
         # pixel_locs_flat = pixel_locs_flat[sort_indices]
         # coeff_vals = coeff_vals[sort_indices]
@@ -167,7 +167,6 @@ class RadonOpLines(pyca.LinOp):
         # pixel_locs_flat = self.ncols * pixel_locs_unique[:, 0] + pixel_locs_unique[:, 1]
         # return pixel_locs_flat, coeff_vals_unique*np.linalg.norm(self.hstep[n])*self.h
 
-    @pycu.vectorize("arr")
     # @numba.jit(parallel=True, fastmath=True)
     def apply(self, arr: pyct.NDArray) -> pyct.NDArray:
         # could be easily vectorized in a different way.
@@ -178,7 +177,6 @@ class RadonOpLines(pyca.LinOp):
             sinogram[i] = np.sum(arr[pixel_locs] * coeff_vals)
         return sinogram.reshape(1, -1)
 
-    @pycu.vectorize("sinogram")
     # @numba.jit(parallel=True, fastmath=True)
     def adjoint(self, sinogram: pyct.NDArray) -> pyct.NDArray:
         # easily vectorizable in a different way.

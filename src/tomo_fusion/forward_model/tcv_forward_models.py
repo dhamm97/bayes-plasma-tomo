@@ -6,9 +6,13 @@ import pyxu.operator.linop.base as pycb
 import scipy.io as scio
 from scipy import sparse
 
-import tomo_fusion.forward_model.chord_geometry as geom
-import tomo_fusion.forward_model.LoS_handling as LoS
-import tomo_fusion.forward_model.reaction as pyreaction
+import src.tomo_fusion.forward_model.chord_geometry as geom
+import src.tomo_fusion.forward_model.LoS_handling as LoS
+import src.tomo_fusion.forward_model.reaction as pyreaction
+
+import os
+dirname = os.path.dirname(__file__)
+#filename = os.path.join(dirname, 'src/tomo_fusion/forward_model')
 
 
 def plot_diagnostics():
@@ -57,19 +61,20 @@ def SpcForwardModel(diagnostic="bolo", model="lines", **other_kwargs):
         # get relevant other_kwargs
         Lr = other_kwargs.get("Lr", 0.5)
         Lz = other_kwargs.get("Lz", 1.5)
-        sampling_step = other_kwargs.get("sampling_step", 0.0125)
+        sampling_step = other_kwargs.get("sampling_step", np.array([0.0125, 0.012775]))
+        arg_shape = other_kwargs.get("arg_shape", np.array([round(Lz / sampling_step[0]), round(Lr / sampling_step[1])]))
         integration_step_lines = other_kwargs.get("integration_step_lines", 1)
         # load geometry information
         radcam = geom.RADCAM_system()
         if diagnostic == "bolo":
             LoS_params = radcam.bolo_LoS_params
             bolo_startpoints, bolo_endpoints, _ = LoS.LoS_extrema_from_LoS_params(
-                LoS_params, Lr=Lr, Lz=Lz, h=sampling_step
+                LoS_params, Lr=Lr, Lz=Lz, h=sampling_step, convert_to_image_coordinates=True,
             )
             Op = pyreaction.RadonOpLines(
                 bolo_startpoints,
                 bolo_endpoints,
-                np.array([round(Lz / sampling_step), round(Lr / sampling_step)]),
+                arg_shape,
                 h=sampling_step,
                 integration_step=integration_step_lines,
             )
@@ -77,12 +82,12 @@ def SpcForwardModel(diagnostic="bolo", model="lines", **other_kwargs):
         elif diagnostic == "axuv":
             LoS_params = radcam.axuv_LoS_params
             axuv_startpoints, axuv_endpoints, _ = LoS.LoS_extrema_from_LoS_params(
-                LoS_params, Lr=Lr, Lz=Lz, h=sampling_step
+                LoS_params, Lr=Lr, Lz=Lz, h=sampling_step, convert_to_image_coordinates=True,
             )
             Op = pyreaction.RadonOpLines(
                 axuv_startpoints,
                 axuv_endpoints,
-                np.array([round(Lz / sampling_step), round(Lr / sampling_step)]),
+                arg_shape,
                 h=sampling_step,
                 integration_step=integration_step_lines,
             )
@@ -90,12 +95,12 @@ def SpcForwardModel(diagnostic="bolo", model="lines", **other_kwargs):
         elif diagnostic == "sxr":
             LoS_params = radcam.sxr_LoS_params
             sxr_startpoints, sxr_endpoints, _ = LoS.LoS_extrema_from_LoS_params(
-                LoS_params, Lr=Lr, Lz=Lz, h=sampling_step
+                LoS_params, Lr=Lr, Lz=Lz, h=sampling_step, convert_to_image_coordinates=True,
             )
             Op = pyreaction.RadonOpLines(
                 sxr_startpoints,
                 sxr_endpoints,
-                np.array([round(Lz / sampling_step), round(Lr / sampling_step)]),
+                arg_shape,
                 h=sampling_step,
                 integration_step=integration_step_lines,
             )
@@ -133,14 +138,15 @@ def SpcForwardModel(diagnostic="bolo", model="lines", **other_kwargs):
             Tmat_sparse = sparse.csr_matrix(Tmat)
             Op = pyca.LinOp.from_array(A=Tmat_sparse)
         elif diagnostic == "sxr":
-            Tmat = scio.loadmat("forward_model/matrices/forward_lines_sxr.mat")["Tmatline_py"]
+            Tmat = scio.loadmat(
+                os.path.join(dirname, 'matrices/forward_lines_sxr.mat'))["Tmatline_py"]
             Tmat_sparse = sparse.csr_matrix(Tmat)
             Op = pyca.LinOp.from_array(A=Tmat_sparse)
         else:
             raise ValueError("SPC lines model currently only handled for `bolo`, `axuv` and `sxr` diagnostics.")
     elif model == "spc_beams":
         if diagnostic == "bolo":
-            Tmat = scio.loadmat("forward_model/matrices/forward_beams_bolo.mat")["Tmatvol_py"]
+            Tmat = scio.loadmat("matrices/forward_beams_bolo.mat")["Tmatvol_py"]
             Tmat_sparse = sparse.csr_matrix(Tmat)
             Op = pycb._ExplicitLinOp(cls=pyca.LinOp, mat=Tmat_sparse)
         else:
