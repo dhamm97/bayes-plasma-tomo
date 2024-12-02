@@ -1,22 +1,12 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import cupy as cp
-import src.tomo_fusion.helpers as tools
-import skimage.transform as skimt
 from pyxu.info import ptype as pxt
-from pyxu_diffops.operator import AnisCoherenceEnhancingDiffusionOp
-import pyxu.util as pycu
-import sys
-import argparse
-import pyxu.abc as pxa
 import scipy.sparse as sp
-import time
 import pyxu.operator as pyxop
-import pyxu.info.ptype as pyct
-import pyxu.info.deps as pxd
-import pyxu.info.warning as pxw
-from pyxu.abc.operator import QuadraticFunc, LinOp
-import copy
+from pyxu.abc.operator import LinOp
+import os
+
+
+dirname = os.path.dirname(__file__)
 
 
 class ExplicitLinOpSparseMatrix(LinOp):
@@ -39,8 +29,14 @@ class ExplicitLinOpSparseMatrix(LinOp):
         return y
 
 
-def DataFidelityFunctional(dim_shape: pxt.NDArrayShape, tomo_data: pxt.NDArray, sigma_err: pxt.NDArray, geometry_matrix: pxt.SparseArray) -> pxt.OpT:
+def DataFidelityFunctional(dim_shape: pxt.NDArrayShape, tomo_data: pxt.NDArray, sigma_err: pxt.NDArray, grid: str = "coarse") -> pxt.OpT:
+    if grid == "coarse":
+        geometry_matrix = sp.load_npz("../tomo_fusion/forward_model/matrices/sparse_geometry_matrix_sxr.npz")
+    elif grid == "fine":
+        geometry_matrix = sp.load_npz("../tomo_fusion/forward_model/matrices/sparse_geometry_matrix_sxr_fine_grid.npz")
     # define explicit LinOp from geometry matrix
     forward_model_linop = ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=geometry_matrix)
+    forward_model_linop.lipschitz = np.linalg.norm(geometry_matrix.toarray(), 2)
     # define data-fidelity functional
-    op = 1 / (2 * sigma ** 2 ) * pyxop.SquaredL2Norm(dim_shape=(tomo_data.size,)).argshift(-tomo_data.ravel()) * forward_model_linop
+    op = 1 / (2 * sigma_err ** 2 ) * pyxop.SquaredL2Norm(dim_shape=(tomo_data.size,)).argshift(-tomo_data.ravel()) * forward_model_linop
+    return op
