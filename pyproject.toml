@@ -30,7 +30,7 @@ urls.download = "https://github.com/dhamm97/bayes-plasma-tomo"
 dependencies = [
     # "pyxu >= 2.0, < 3",
     #"pyxu",
-    "pyxu @ git+https://github.com/pyxu-org/pyxu.git@v2.0b5",
+    "pyxu @ git+https://github.com/pyxu-org/pyxu.git@v2.0.2",
     "pyxu-diffops @ git+https://github.com/dhamm97/pyxu-diffops.git",
 ]
 
