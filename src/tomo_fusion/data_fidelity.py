@@ -9,7 +9,7 @@ import os
 dirname = os.path.dirname(__file__)
 
 
-class ExplicitLinOpSparseMatrix(LinOp):
+class _ExplicitLinOpSparseMatrix(LinOp):
     def __init__(self, dim_shape, mat):
         assert len(mat.shape) == 2, "Matrix `mat` must be a 2-dimensional array"
         super().__init__(dim_shape=dim_shape, codim_shape=mat.shape[0])
@@ -36,7 +36,7 @@ def DataFidelityFunctional(dim_shape: pxt.NDArrayShape, tomo_data: pxt.NDArray, 
     elif grid == "fine":
         geometry_matrix = sp.load_npz(dir_geom_mats+"/sparse_geometry_matrix_sxr_fine_grid.npz")
     # define explicit LinOp from geometry matrix
-    forward_model_linop = ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=geometry_matrix)
+    forward_model_linop = _ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=geometry_matrix)
     forward_model_linop.lipschitz = sp.linalg.norm(geometry_matrix.toarray(), 2)
     # define data-fidelity functional
     op = 1 / (2 * sigma_err ** 2 ) * pyxop.SquaredL2Norm(dim_shape=(tomo_data.size,)).argshift(-tomo_data.ravel()) * forward_model_linop
