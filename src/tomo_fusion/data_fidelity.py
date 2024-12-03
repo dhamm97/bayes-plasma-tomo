@@ -30,13 +30,14 @@ class ExplicitLinOpSparseMatrix(LinOp):
 
 
 def DataFidelityFunctional(dim_shape: pxt.NDArrayShape, tomo_data: pxt.NDArray, sigma_err: pxt.NDArray, grid: str = "coarse") -> pxt.OpT:
+    dir_geom_mats = os.path.join(dirname, 'forward_model/geometry_matrices')
     if grid == "coarse":
-        geometry_matrix = sp.load_npz("../tomo_fusion/forward_model/matrices/sparse_geometry_matrix_sxr.npz")
+        geometry_matrix = sp.load_npz(dir_geom_mats+"/sparse_geometry_matrix_sxr.npz")
     elif grid == "fine":
-        geometry_matrix = sp.load_npz("../tomo_fusion/forward_model/matrices/sparse_geometry_matrix_sxr_fine_grid.npz")
+        geometry_matrix = sp.load_npz(dir_geom_mats+"/sparse_geometry_matrix_sxr_fine_grid.npz")
     # define explicit LinOp from geometry matrix
     forward_model_linop = ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=geometry_matrix)
-    forward_model_linop.lipschitz = np.linalg.norm(geometry_matrix.toarray(), 2)
+    forward_model_linop.lipschitz = sp.linalg.norm(geometry_matrix.toarray(), 2)
     # define data-fidelity functional
     op = 1 / (2 * sigma_err ** 2 ) * pyxop.SquaredL2Norm(dim_shape=(tomo_data.size,)).argshift(-tomo_data.ravel()) * forward_model_linop
     return op
