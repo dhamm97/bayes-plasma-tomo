@@ -1,7 +1,8 @@
 import numpy as np
+import skimage.transform as skimt
 
 
-def compute_tcv_mask(arg_shape, Lr=0.514, Lz=1.5):
+def define_tcv_mask(dim_shape, Lr=0.511, Lz=1.5):
     """
     Compute boolean mask detemrining whether a pixel falls within vessel or not
     :param arg_shape:
@@ -9,7 +10,7 @@ def compute_tcv_mask(arg_shape, Lr=0.514, Lz=1.5):
     :param Lz:
     :return:
     """
-    tcv_mask = np.ones(arg_shape, dtype=bool)
+    tcv_mask = np.ones(dim_shape, dtype=bool)
     x_coord_lfs_corners = 0.348
     x_coord_hfs_corners = 0.046
     y_coord_hfs_upper_corners = 1.454
@@ -26,10 +27,10 @@ def compute_tcv_mask(arg_shape, Lr=0.514, Lz=1.5):
     m_lfs_upper_corner = - m_lfs_lower_corner
     line_lfs_upper_corner = [m_lfs_upper_corner, Lz - m_lfs_upper_corner * x_coord_lfs_corners]
     # define pixel sizes
-    pixel_x_size = Lr / arg_shape[1]
-    pixel_y_size = Lz / arg_shape[0]
-    for i in range(arg_shape[0]):
-        for j in range(arg_shape[1]):
+    pixel_x_size = Lr / dim_shape[1]
+    pixel_y_size = Lz / dim_shape[0]
+    for i in range(dim_shape[0]):
+        for j in range(dim_shape[1]):
             x_coord_pixel = j * pixel_x_size + 0.5 * pixel_x_size
             y_coord_pixel = Lz - (i * pixel_y_size + 0.5 * pixel_y_size)
 
@@ -42,19 +43,23 @@ def compute_tcv_mask(arg_shape, Lr=0.514, Lz=1.5):
                 tcv_mask[i, j] = False
             elif y_coord_pixel > x_coord_pixel * line_lfs_upper_corner[0] + line_lfs_upper_corner[1] + tol:
                 tcv_mask[i, j] = False
-
-            # if x_coord_pixel > x_coord_lfs_corners and y_coord_pixel < y_coord_lfs_lower_corners:
-            #     tcv_mask[i, j] = False
-            # elif x_coord_pixel > x_coord_lfs_corners and y_coord_pixel > y_coord_lfs_upper_corners:
-            #     tcv_mask[i, j] = False
-            # elif x_coord_pixel < x_coord_hfs_corners and y_coord_pixel < y_coord_hfs_lower_corners:
-            #     tcv_mask[i, j] = False
-            # elif x_coord_pixel < x_coord_hfs_corners and y_coord_pixel > y_coord_hfs_upper_corners:
-            #     tcv_mask[i, j] = False
     return tcv_mask
 
 
-def compute_radiated_power(emissivity, ROI_map=None, sampling=1.0, R_hfs=0.624, R_lfs=1.138):
+def define_core_mask(psi, dim_shape, xpoint_idx_base_psi=90, trim_values_x=[0, 120]):
+    # Reshape magnetic equilibrium if necessary
+    if psi.shape != dim_shape:
+        psi = skimt.resize(psi, dim_shape, anti_aliasing=False, mode='edge')
+    mask = np.where(psi<0)
+    xpoint_loc = int(dim_shape[0] * (xpoint_idx_base_psi - trim_values_x[0]) / (trim_values_x[1] - trim_values_x[0]) )
+    mask_idx_above_xpoint_x = mask[0][mask[0] < xpoint_loc]
+    mask_idx_above_xpoint_y = mask[1][mask[0] < xpoint_loc]
+    mask_core = np.zeros(dim_shape, dtype=bool)
+    mask_core[mask_idx_above_xpoint_x, mask_idx_above_xpoint_y] = True
+    return mask_core
+
+
+def compute_radiated_power(emissivity, ROI_map=None, sampling=1.0, R_hfs=0.624, R_lfs=1.135):
     """
     Compute radiated power P (either total or from a subregion)
     :param emissivity:

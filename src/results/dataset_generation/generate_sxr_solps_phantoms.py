@@ -1,27 +1,9 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import src.tomo_fusion.helpers as tools
 import skimage.transform as skimt
 from pyxu_diffops.operator import AnisCoherenceEnhancingDiffusionOp
-import pyxu.util as pycu
-import sys
 import argparse
-import pyxu.abc as pxa
-import scipy.sparse as sp
-import time
 
-def define_clipping_mask(psi, arg_shape=(120,40), xpoint_idx_basi_psi=90, trim_values_x=[0, 120], psi_threshold=0):
-    mask = np.where(psi<psi_threshold)
-    xpoint_loc = int(arg_shape[0] * (xpoint_idx_basi_psi - trim_values_x[0]) / (trim_values_x[1] - trim_values_x[0]) )
-    mask_idx_above_xpoint_x = mask[0][mask[0] < xpoint_loc]
-    mask_idx_above_xpoint_y = mask[1][mask[0] < xpoint_loc]
-    # mask_core = (mask_idx_above_xpoint_x, mask_idx_above_xpoint_y)
-    # mask_outside_core = np.ones(arg_shape, dtype=bool)
-    # mask_outside_core[mask_core] = False
-    # return mask_outside_core
-    mask_core = np.zeros(arg_shape, dtype=bool)
-    mask_core[mask_idx_above_xpoint_x, mask_idx_above_xpoint_y] = True
-    return mask_core
+from src.tomo_fusion.tools.helpers import define_core_mask
 
 
 def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40), sampling=0.0125, steps_nb_factor=1, nsamples=1e3, seed=0, save=False, save_dir='sxr_samples',
