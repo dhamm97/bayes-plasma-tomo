@@ -2,13 +2,13 @@ import numpy as np
 from skimage.metrics import structural_similarity as ssim
 import os
 
-from reg_param_est import RegParamMLE, ProxFuncMoreau
+from src.tomo_fusion.reg_param_est import RegParamMLE, ProxFuncMoreau
 import pyxu.abc as pxa
 import pyxu.opt.stop as pyxst
 import pyxu.operator as pyxop
 
-import functionals_definition as fct_def
-import bayesian_computations as bcomp
+import src.tomo_fusion.functionals_definition as fct_def
+import src.tomo_fusion.bayesian_computations as bcomp
 from src.tomo_fusion.tools import plotting_fcts as plt_tools
 
 dirname = os.path.dirname(__file__)
@@ -30,8 +30,8 @@ def run_sapg(f_sapg, g_sapg, lambda_min=1e-3, lambda_max=1e3,
     # Initialize SAPG
     delta0 = [5*1e-2]
     stop_crit_SAPG = pyxst.MaxIter(sapg_max_iter)
-    sapg = RegParamMLE(f=f_sapg, g=[g_sapg], homo_factors=[homo_factors], verbosity=None)
-    sapg.fit(mode=pxa.SolverMode.MANUAL, x0=np.zeros(f_sapg.dim_size),
+    sapg = RegParamMLE(f=f_sapg, g=[g_sapg], homo_factors=[homo_factors], verbosity=100)
+    sapg.fit(mode=pxa.SolverMode.MANUAL, x0=np.zeros(f_sapg.dim_shape[1:]),
              theta0=lambda0, theta_min=lambda_min, theta_max=lambda_max, delta0=delta0,
              warm_start=warm_start, gamma=gamma, log_scale=True,
              stop_crit=stop_crit_SAPG, batch_size=1, rng=rng)
@@ -40,6 +40,7 @@ def run_sapg(f_sapg, g_sapg, lambda_min=1e-3, lambda_max=1e3,
     it = 0
     print("Runnning SAPG")
     for data in sapg.steps(n=sapg_max_iter):
+        print(it)
         lambda_list[:, it] = data["theta"]
         it += 1
 
@@ -51,7 +52,7 @@ def run_sapg(f_sapg, g_sapg, lambda_min=1e-3, lambda_max=1e3,
 
 def reg_param_tuning(f, g, with_pos_constraint=False, ground_truth=None,
                      reg_params=np.logspace(-3,3,7),
-                     tuning_techniques='SAPG',
+                     tuning_techniques=["SAPG"],
                      sapg_max_iter=int(1e4), sapg_warm_start=int(1e3),
                      seed=0, plot=False):
     """

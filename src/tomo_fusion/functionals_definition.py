@@ -83,23 +83,25 @@ def define_loglikelihood_and_logprior(ground_truth, psi,
     f.tomo_data = tomo_data
 
     # Define regularization functional
-    if reg_fct_type=="coherence_enhancing":
+    if reg_fct_type == "coherence_enhancing":
         g = px_diffops.AnisCoherenceEnhancingDiffusionOp(dim_shape=dim_shape_coarse,
                                                         alpha=alpha,
                                                         m=1,
                                                         sigma_gd_st=1*sampling,
                                                         smooth_sigma_st=2*sampling,
                                                         freezing_arr=psi,
-                                                        sampling=sampling)
-    elif reg_fct_type=="anisotropic":
+                                                        sampling=sampling,
+                                                        matrix_based_impl=True)
+    elif reg_fct_type == "anisotropic":
         g = px_diffops.AnisDiffusionOp(dim_shape=dim_shape_coarse,
-                                                        alpha=alpha,
-                                                        diff_method_struct_tens="fd",
-                                                        freezing_arr=psi,
-                                                        sampling=sampling)
-    elif reg_fct_type=="MFI":
+                                       alpha=alpha,
+                                       diff_method_struct_tens="fd",
+                                       freezing_arr=psi,
+                                       sampling=sampling,
+                                       matrix_based_impl=True)
+    elif reg_fct_type == "MFI":
         raise ValueError("reg_fct_type `MFI` not available yet")
-    elif reg_fct_type=="anisMFI":
+    elif reg_fct_type == "anisMFI":
         raise ValueError("reg_fct_type `AnisMFI` not available yet")
 
     return f, g

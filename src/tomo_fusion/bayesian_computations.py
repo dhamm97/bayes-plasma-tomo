@@ -8,9 +8,9 @@ import pyxu.operator as pyxop
 from pyxu.experimental.sampler._sampler import ULA, MYULA
 from pyxu.experimental.sampler.statistics import OnlineMoment, OnlineVariance
 
-from reg_param_est import ProxFuncMoreau
+from src.tomo_fusion.reg_param_est import ProxFuncMoreau
 
-import tools.helpers as tomo_helps
+import src.tomo_fusion.tools.helpers as tomo_helps
 
 dirname = os.path.dirname(__file__)
 
@@ -66,7 +66,7 @@ def run_ula(f, g, reg_param,
     else:
         clipping_mask = None
     # initialize ULA sampler
-    gamma = 0.99 / ula_obj.diff_lipschitz
+    gamma = 0.98 / ula_obj.diff_lipschitz
     ula = ULA(f=ula_obj, gamma=gamma)
     x0 = np.zeros(ula_obj.dim_shape[1:])
     rng = np.random.default_rng(seed=seed)

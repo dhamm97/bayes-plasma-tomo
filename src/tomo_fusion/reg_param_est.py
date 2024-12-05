@@ -827,9 +827,9 @@ class RegParamMLE(pyca.Solver):
 
     def _set_gamma(self, gamma: pyct.Real = None, dl: pyct.Real = 0) -> pyct.Real:
         if gamma is None:
-            return pycrt.coerce(0.98 / dl)
+            return 0.98 / dl
         else:
-            return pycrt.coerce(gamma)
+            return gamma
 
     def _diff_lipschitz(self, theta):
         return self._f.diff_lipschitz + sum([theta[i] * self._g[i].diff_lipschitz for i in range(len(self._g))])
