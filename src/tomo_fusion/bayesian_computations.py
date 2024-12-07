@@ -11,49 +11,87 @@ from pyxu.experimental.sampler.statistics import OnlineMoment, OnlineVariance
 from src.tomo_fusion.reg_param_est import ProxFuncMoreau
 
 import src.tomo_fusion.tools.helpers as tomo_helps
+import src.tomo_fusion.functionals_definition as fct_def
 
 dirname = os.path.dirname(__file__)
 
 
-def compute_MAP(f, g, reg_param, pos_constraint=None, clipping_mask=None):
+# def compute_MAP(f, g, reg_param, pos_constraint=None, clipping_mask=None):
+#     # Define stopping criterion
+#     stop_crit = pyxst.MaxIter(int(1e4)) | (pyxst.RelError(1e-5))
+#     # define starting point (backprojection)
+#     back_projection = f.forward_model_linop.T(f.noisy_tomo_data.reshape(-1))
+#     if (pos_constraint is not None) or ('Mfi' in g._name) or (clipping_mask is not None):
+#         # apply projected gradient descent (PGD) algorithm
+#         obj = f + reg_param * g
+#         obj.diff_lipschitz = f.diff_lipschitz + reg_param * g.diff_lipschitz
+#         # compute MAP
+#         solver = PGD(f=obj, g=pos_constraint, verbosity=1000)
+#         if clipping_mask is None:
+#             solver.fit(x0=back_projection, stop_crit=stop_crit, acceleration=True, tau=1 / obj.diff_lipschitz, d=3)
+#         else:
+#             solver.fit(x0=back_projection, stop_crit=stop_crit, acceleration=True, tau=1 / obj.diff_lipschitz, d=3, mode=pxa.SolverMode.MANUAL)
+#             for step in solver.steps():
+#                 step["x"] = clipping_mask * step["x"]
+#             return step["x"]
+#     else:
+#         # apply conjugate gradient (CG) algorithm
+#         cg_op = (1 / f.sigma_err**2) * f.forward_model_linop.T * f.forward_model_linop + reg_param * g._grad_matrix_based
+#         # compute MAP
+#         solver = CG(A=cg_op, verbosity=1000)
+#         back_projection = np.expand_dims(back_projection,0)
+#         solver.fit(x0=back_projection, b=1 / f.sigma_err ** 2 * back_projection, stop_crit=stop_crit)
+#     # return MAP
+#     return solver.solution()
+
+def compute_MAP(f, g, reg_param, with_pos_constraint=False, clipping_mask=None, show_progress=True):
+    # define proximable term if needed
+    prox_term = None
+    if with_pos_constraint:
+        if clipping_mask is None:
+            # positivity constraint
+            prox_term = pyxop.PositiveOrthant(dim_shape=(f.dim_size,))
+        else:
+            # positivity constraint and clipping to region of interest
+            prox_term = fct_def._PositiveClipToROI(f.dim_shape, clipping_mask)
+    else:
+        if clipping_mask is not None:
+            # clipping to region of interest
+            prox_term = fct_def._ClipToROI(f.dim_shape, clipping_mask)
     # Define stopping criterion
-    stop_crit = pyxst.MaxIter(int(1e4)) | (pyxst.RelError(1e-5))
+    stop_crit = pyxst.MaxIter(int(1e4)) | (pyxst.RelError(1e-5, rank=2))
     # define starting point (backprojection)
     back_projection = f.forward_model_linop.T(f.noisy_tomo_data.reshape(-1))
-    if (pos_constraint is not None) or ('Mfi' in g._name) or (clipping_mask is not None):
+    if (prox_term is not None) or ('Mfi' in g._name):
         # apply projected gradient descent (PGD) algorithm
         obj = f + reg_param * g
         obj.diff_lipschitz = f.diff_lipschitz + reg_param * g.diff_lipschitz
         # compute MAP
-        solver = PGD(f=obj, g=pos_constraint, verbosity=1000)
-        if clipping_mask is None:
-            solver.fit(x0=back_projection, stop_crit=stop_crit, acceleration=True, tau=1 / obj.diff_lipschitz, d=3)
-        else:
-            solver.fit(x0=back_projection, stop_crit=stop_crit, acceleration=True, tau=1 / obj.diff_lipschitz, d=3, mode=pxa.SolverMode.Manual)
-            for step in solver.steps():
-                step["x"] = clipping_mask * step["x"]
+        solver = PGD(f=obj, g=prox_term, show_progress=show_progress, verbosity=1000)
+        solver.fit(x0=back_projection, stop_crit=stop_crit, acceleration=True, tau=1 / obj.diff_lipschitz, d=3)
     else:
         # apply conjugate gradient (CG) algorithm
         cg_op = (1 / f.sigma_err**2) * f.forward_model_linop.T * f.forward_model_linop + reg_param * g._grad_matrix_based
         # compute MAP
-        solver = CG(A=cg_op, verbosity=1000)
+        solver = CG(A=cg_op, show_progress=show_progress, verbosity=1000)
+        back_projection = np.expand_dims(back_projection,0)
         solver.fit(x0=back_projection, b=1 / f.sigma_err ** 2 * back_projection, stop_crit=stop_crit)
     # return MAP
-    return solver.solution()
+    return solver.solution().squeeze()
 
 
 def run_ula(f, g, reg_param,
             psi, trim_values_x,
             with_pos_constraint=False,
-            clip_iterations="core",
+            clip_iterations=None,
             estimate_quantiles=False, quantile_marks=[0.05, 0.5, 0.95],
             compute_stats_wrt_MAP=False,
             samples=int(1e5), burn_in=int(1e3), thinning_factor=1,
             seed=0):
     # define ula objective function
     ula_obj = f + reg_param * g
-    pos_constraint = pyxop.PositiveOrthant(dim_shape=(f.dim_size,)) if with_pos_constraint else None
-    if with_pos_constraint is not None:
+    pos_constraint = pyxop.PositiveOrthant(dim_shape=f.dim_shape) if with_pos_constraint else None
+    if with_pos_constraint:
         # add positivity constraint to ula objective function
         ula_obj += ProxFuncMoreau(pos_constraint, mu=1e-3)
     # define tcv and core masks
@@ -84,7 +122,7 @@ def run_ula(f, g, reg_param,
         var_prad_ula_wrtMAP_tcv = OnlineMoment(order=2)
         var_prad_ula_wrtMAP_core = OnlineMoment(order=2)
         # compute MAP and radiated power
-        im_MAP = compute_MAP(f, g, reg_param, pos_constraint=pos_constraint, clipping_mask=clipping_mask)
+        im_MAP = compute_MAP(f, g, reg_param, with_pos_constraint=with_pos_constraint, clipping_mask=clipping_mask)
         prad_MAP_tcv = tomo_helps.compute_radiated_power(im_MAP, mask_tcv, g.sampling)
         prad_MAP_core = tomo_helps.compute_radiated_power(im_MAP, mask_core, g.sampling)
 
@@ -92,6 +130,9 @@ def run_ula(f, g, reg_param,
     print("Running {} ULA iterations".format(samples))
     prads_tcv = np.zeros(int(samples/thinning_factor), dtype=np.float16)
     prads_core = np.zeros(int(samples/thinning_factor), dtype=np.float16)
+
+    # initialize data
+    data = {}
 
     if estimate_quantiles:
         # retain one sample every 1000 for quantile estimation
@@ -108,6 +149,9 @@ def run_ula(f, g, reg_param,
         sample = next(gen_ula)
         if clipping_mask is not None:
             ula.x = clipping_mask * sample
+
+        if (i+1) % int(1e4) == 0:
+            print("iteration ", i+1)
 
         if estimate_quantiles:
             # quantile estimation

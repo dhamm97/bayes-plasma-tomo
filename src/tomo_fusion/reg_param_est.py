@@ -783,7 +783,7 @@ class RegParamMLE(pyca.Solver):
         mst["x"] = x
 
         # Update theta
-        grad = self._f.dim / (self._homo_factors * mst["theta"]) - means
+        grad = self._f.dim_size / (self._homo_factors * mst["theta"]) - means
         if mst["log_scale"]:
             eta = np.log(mst["theta"])
             eta += mst["theta"] * delta * grad
@@ -863,7 +863,7 @@ class ProxFuncMoreau(pyca.ProxDiffFunc):
             Moreau envelope parameter.
 
         """
-        super().__init__(shape=(1, f.dim))
+        super().__init__(dim_shape=f.dim_shape, codim_shape=1)
         self._f = f
         self._mu0 = mu  # Specifically for RegParamMLE
         self._mu = mu

@@ -5,6 +5,7 @@ import os
 
 from pyxu.info import ptype as pxt
 import pyxu.operator as pyxop
+import pyxu.abc as pxa
 from pyxu.abc.operator import LinOp
 import pyxu_diffops.operator as px_diffops
 
@@ -24,14 +25,53 @@ class _ExplicitLinOpSparseMatrix(LinOp):
     def apply(self, arr: pxt.NDArray) -> pxt.NDArray:
         arr = arr.reshape(*arr.shape[:-2], self.num_pixels)
         y = self.mat.dot(arr.T).T
-        y = y.reshape(*y.shape[:-1], self.codim_shape)
+        y = y.reshape(*y.shape[:-1], *self.codim_shape)
         return y
 
     def adjoint(self, arr: pxt.NDArray) -> pxt.NDArray:
-        arr = arr.reshape(*arr.shape[:-1], self.codim_shape)
+        arr = arr.reshape(*arr.shape[:-1], *self.codim_shape)
         y = self.mat.T.dot(arr.T).T
         y = y.reshape(*y.shape[:-1], *self.dim_shape[1:])
         return y
+
+
+class _ClipToROI(pxa.ProxFunc):
+    r"""
+    Clips signal to a region of interest provided at initialization time.
+    """
+    def __init__(self, dim_shape: pxt.NDArrayShape, clipping_mask: pxt.NDArray):
+        super().__init__(dim_shape=dim_shape, codim_shape=1)
+        self.clipping_mask = clipping_mask
+
+    def apply(self, arr: pxt.NDArray) -> pxt.NDArray:
+        in_set = (arr*~self.clipping_mask == 0).all()
+        out = np.where(in_set, 0, np.inf).astype(arr.dtype)
+        return out
+
+    def prox(self, arr: pxt.NDArray, tau: pxt.Real) -> pxt.NDArray:
+        out = arr * self.clipping_mask
+        return out
+
+
+class _PositiveClipToROI(pxa.ProxFunc):
+    r"""
+    Clips signal to a region of interest provided at initialization time adn constrains it to be positive.
+    """
+    def __init__(self, dim_shape: pxt.NDArrayShape, clipping_mask: pxt.NDArray):
+        super().__init__(dim_shape=dim_shape, codim_shape=1)
+        self.clipping_mask = clipping_mask
+
+    def apply(self, arr: pxt.NDArray) -> pxt.NDArray:
+        in_set = (arr*~self.clipping_mask == 0).all() and (arr >= 0).all()
+        out = np.where(in_set, 0, np.inf).astype(arr.dtype)
+        print(out)
+        return out
+
+    def prox(self, arr: pxt.NDArray, tau: pxt.Real) -> pxt.NDArray:
+        arr0 = arr.clip(0, None)
+        out = arr0 * self.clipping_mask
+        return out
+
 
 
 def _DataFidelityFunctional(dim_shape: pxt.NDArrayShape, noisy_tomo_data: pxt.NDArray,
@@ -107,12 +147,19 @@ def define_loglikelihood_and_logprior(ground_truth, psi,
     return f, g
 
 
-def define_loglikelihood_cv(f, cv_type="CV_single", seed=0):
+def define_loglikelihood_cv(f, cv_type="CV_single", cv_strategy="random", seed=0):
     if cv_type == "CV_single":
         # select randomly 80 LoS. Remaining 20 will be used for tuning
         np.random.seed(seed)
-        cv_idx = np.sort(np.random.choice(np.arange(0, f.forward_model_linop.codim_size),
+        if cv_strategy == "random":
+            cv_idx = np.sort(np.random.choice(np.arange(0, f.forward_model_linop.codim_size),
                                           int(0.8*f.forward_model_linop.codim_size), False))
+        elif cv_strategy == "by_camera":
+            cv_idx = np.delete(np.arange(0, 100),
+                               (20 * np.random.randint(0,5)) + np.arange(0, 20)
+                               )
+        else:
+            raise ValueError("cv_strategy {} not available".format(cv_strategy))
         # create cv data fidelity functional
         f_cv = _DataFidelityFunctional(dim_shape=f.forward_model_linop.dim_shape,
                                               noisy_tomo_data=f.noisy_tomo_data[cv_idx],
@@ -127,7 +174,8 @@ def define_loglikelihood_cv(f, cv_type="CV_single", seed=0):
         f_cv = []
         idxs = np.arange(0, 100)
         np.random.seed(seed)
-        np.random.shuffle(idxs)
+        if cv_strategy == "random":
+            np.random.shuffle(idxs)
         # for each cross-validation fold, assemblate data fidelity functional
         for i in range(5):
             cv_idx = np.delete(idxs, idxs[i * 20: (i + 1) * 20])

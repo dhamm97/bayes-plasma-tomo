@@ -38,6 +38,80 @@ def plot_errbar_ax(ax, xp, m, var, left=1, right=1, col="red", linewidth=2):
     ax.plot(xp, m, '.', color=col, markersize=10)
 
 
+# def plot_reg_param_tuning_data(reg_param_tuning_data, plot_ssim=False):
+#     for key in list(reg_param_tuning_data.keys()):
+#         if key == "GT":
+#             suptitle_key = "Ground truth"
+#         elif key == "CV_single":
+#             suptitle_key = "Cross Validation (1 fold)"
+#         elif key == "CV_full":
+#             suptitle_key = "Cross Validation (5 fold)"
+#         else:
+#             raise ValueError(f"Unknown key {key}")
+#         data = reg_param_tuning_data[key]
+#         reg_params = data[0, :]
+#         xticks = np.arange(0, int(np.log10(reg_params[-1]) - np.log10(reg_params[0]) + 1))
+#         reg_params_plot_ticks = np.logspace(int(np.log10(reg_params[0])), int(np.log10(reg_params[-1])),
+#                                             int(np.log10(reg_params[-1]) - np.log10(reg_params[0]) + 1))
+#         xtick_labels = [r"$10^{{{}}}$".format(int(np.log10(x))) for x in reg_params_plot_ticks]
+#         nb_subplots = 3 if plot_ssim else 2
+#         fig_width = 18 if plot_ssim else 12
+#         fig, ax = plt.subplots(1, nb_subplots, figsize=(fig_width, 3))
+#         eval_points = np.linspace(xticks[0], xticks[-1], reg_params.size)
+#         for i in range(nb_subplots):
+#             ax[i].plot(eval_points, data[i+1, :])
+#             ax[i].set_xlabel(r"$\lambda$")
+#             ax[i].set_xticks(xticks)
+#             ax[i].set_xticklabels(xtick_labels)
+#             ax[i].set_yscale("log")
+#         ax[0].set_title("MSE tomo data")
+#         ax[1].set_title("MSE image")
+#         if plot_ssim:
+#             ax[2].set_title("SSIM")
+#         plt.suptitle(suptitle_key, fontsize=20, y=1.1)
+#         plt.show()
+
+
+def plot_hyperparam_tuning_data(hyperparam_tuning_data, param="reg_param", true_param_val=None, plot_ssim=False):
+    for key in list(hyperparam_tuning_data.keys()):
+        if key == "GT":
+            suptitle_key = "Ground truth"
+        elif key == "CV_single":
+            suptitle_key = "Cross Validation (1 fold)"
+        elif key == "CV_full":
+            suptitle_key = "Cross Validation (5 fold)"
+        else:
+            raise ValueError(f"Unknown key {key}")
+        data = hyperparam_tuning_data[key]
+        params = data[0, :]
+        xticks = np.arange(0, int(np.log10(params[-1]) - np.log10(params[0]) + 1))
+        params_plot_ticks = np.logspace(int(np.log10(params[0])), int(np.log10(params[-1])),
+                                            int(np.log10(params[-1]) - np.log10(params[0]) + 1))
+        xtick_labels = [r"$10^{{{}}}$".format(int(np.log10(x))) for x in params_plot_ticks]
+        xlabel = r"$\lambda$" if param == "reg_param" else r"$\alpha$"
+        nb_subplots = 3 if plot_ssim else 2
+        fig_width = 18 if plot_ssim else 12
+        fig, ax = plt.subplots(1, nb_subplots, figsize=(fig_width, 3))
+        eval_points = np.linspace(xticks[0], xticks[-1], params.size)
+        for i in range(nb_subplots):
+            ax[i].plot(eval_points, data[i+1, :])
+            ax[i].set_xlabel(xlabel)
+            ax[i].set_xticks(xticks)
+            ax[i].set_xticklabels(xtick_labels)
+            ax[i].set_yscale("log")
+            if true_param_val is not None:
+                coeff = (np.log10(true_param_val)-np.log10(params[0]))/(np.log10(params[-1])-np.log10(params[0]))
+                true_param_loc = eval_points[0] + coeff * (eval_points[-1] - eval_points[0])
+                ax[i].vlines(true_param_loc, np.min(data[i+1, :]), np.max(data[i+1, :]), 'k', linestyle='--')
+        ax[0].set_title("MSE tomo data")
+        ax[1].set_title("MSE image")
+        if plot_ssim:
+            ax[2].set_title("SSIM")
+        plt.suptitle(suptitle_key, fontsize=20, y=1.1)
+        plt.show()
+
+
+
 # def plot_statistics_full(data, gt, im_MAP, prad_tcv_true, prad_core_true, psi, s_id, xrange_prad=[1.2, 1.6], seed=0):
 #     tomo_data, noisy_tomo_data = compute_tomo_data(gt, seed)
 #     # plt.figure(figsize=(3,3))

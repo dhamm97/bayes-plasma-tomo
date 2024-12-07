@@ -96,7 +96,7 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
 
                 # if we need to clip outside core, define core mask_core
         if clipping_outside_core:
-            mask_core = define_clipping_mask(psi, dim_shape[1:],
+            mask_core = define_core_mask(psi, dim_shape[1:],
                                              trim_values_x=[trimming_values[i, 0], trimming_values[i, 1]],
                                              psi_threshold=0)
             mask_core = np.expand_dims(mask_core, 0)
