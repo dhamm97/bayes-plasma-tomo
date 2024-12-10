@@ -1,5 +1,14 @@
 import matplotlib.pyplot as plt
+from matplotlib.path import Path
+from matplotlib.patches import PathPatch
 import numpy as np
+import os
+import skimage.transform as skimt
+
+import src.tomo_fusion.tools.helpers as tomo_helps
+
+
+dirname = os.path.dirname(__file__)
 
 
 def plot_sapg_run(lambda_min, lambda_max, lambda_list):
@@ -109,6 +118,219 @@ def plot_hyperparam_tuning_data(hyperparam_tuning_data, param="reg_param", true_
             ax[2].set_title("SSIM")
         plt.suptitle(suptitle_key, fontsize=20, y=1.1)
         plt.show()
+
+
+def plot_profile(image,
+                 tcv_plot_clip=False,
+                 contour_image=None, levels=15,
+                 ax=None, colorbar=False,
+                 interpolation=None, vmin=None, vmax=None, cmap="viridis", contour_color="w"):
+    if tcv_plot_clip:
+        # define TCV patch for plotting
+        tcv_shape_coords = np.load(dirname + "/../forward_model/tcv_shape_coords.npy")
+        Lr, Lz = 0.511, 1.5
+        h = Lz / image.shape[0]
+        zs = np.linspace(0, Lz, round(Lz / h), endpoint=False) + 0.5 * h
+        rs = np.linspace(0, Lr, round(Lr / h), endpoint=False) + 0.5 * h
+        tcv_shape_coords[:, 0] = tcv_shape_coords[:, 0] * rs.size - 0.5 * h
+        tcv_shape_coords[:, 1] = tcv_shape_coords[:, 1] * zs.size - 0.5 * h
+        path = Path(tcv_shape_coords.tolist())
+        patch = PathPatch(path, facecolor='none')
+
+    # plot clipping to tcv shape
+    if ax is None:
+        plt.figure(figsize=(2, 3))
+        if contour_image is not None:
+            c = plt.contour(contour_image, origin="lower", levels=levels, antialiased=True, colors=contour_color,
+                        linewidths=0.2)
+            lcms_level = np.where(c.levels == 0)[0][0]
+            c.collections[lcms_level].set_linewidth(0.75)
+        p = plt.imshow(image, interpolation=interpolation, vmin=vmin, vmax=vmax, cmap=cmap)
+        if tcv_plot_clip:
+            plt.gca().add_patch(patch)
+            p.set_clip_path(patch)
+            if contour_image is not None:
+                c.set_clip_path(patch)
+        else:
+            plt.imshow(image, interpolation=interpolation, vmin=vmin, vmax=vmax)
+        plt.axis('off')
+        if colorbar:
+            plt.colorbar()
+    else:
+        # plot on given figure axis
+        if contour_image is not None:
+            c = ax.contour(contour_image, origin="lower", levels=levels, antialiased=True, colors=contour_color,
+                       linewidths=0.2)
+            lcms_level = np.where(c.levels == 0)[0][0]
+            c.collections[lcms_level].set_linewidth(0.75)
+        p = ax.imshow(image, interpolation=interpolation, vmin=vmin, vmax=vmax, cmap=cmap)
+        if tcv_plot_clip:
+            ax.add_patch(patch)
+            p.set_clip_path(patch)
+            if contour_image is not None:
+                c.set_clip_path(patch)
+        else:
+            p = ax.imshow(image, interpolation=interpolation, aspect="auto", vmin=vmin, vmax=vmax)
+        ax.axis('off')
+        if colorbar:
+            plt.colorbar(p, ax=ax)
+    return
+
+
+def plot_phantom_and_sxr_diag(ground_truth, psi, f, levels=12, tcv_plot_clip=False, save_dir=None):
+    fig, ax = plt.subplots(1, 3, figsize=(8, 3), width_ratios=[1, 1, 1.5])
+
+    # plot ground truth
+    plot_profile(ground_truth, tcv_plot_clip=tcv_plot_clip, contour_image=psi, levels=levels,
+                   ax=ax[0], colorbar=True, contour_color="w")
+    ax[0].set_title("Phantom")
+
+    # plot ground truth, superposing the sxr LoS
+    plot_profile(np.flip(ground_truth, axis=0), levels=levels, tcv_plot_clip=tcv_plot_clip, ax=ax[1])
+    sxr_LoS_params = np.load(dirname + "/../forward_model/sxr_LoS_params.npy")
+    r = np.linspace(0, ground_truth.shape[0], 10)
+    center = np.array(ground_truth.shape, dtype=int) / 2
+    Lr, Lz = 0.511, 1.5
+    h = Lz / ground_truth.shape[0]
+    for i in range(sxr_LoS_params.shape[0]):
+        if np.isclose(np.tan(sxr_LoS_params[i, 1]), 0, atol=1e-6):
+            ax[i].vlines(center[1] + sxr_LoS_params[i, 0], 0, Lz, "r", linewidth=0.3)
+        else:
+            p = sxr_LoS_params[i, 0]
+            theta = sxr_LoS_params[i, 1]
+            y = center[0] + p / h / np.sin(theta) - (r - center[1]) / np.tan(theta)
+            ax[1].plot(r, y, "r", linewidth=0.3)
+    ax[1].set_xlim([0, ground_truth.shape[1]])
+    ax[1].set_ylim([0, round(Lz / h)])
+    ax[1].set_title("SXR diagnostic")
+
+    # plot tomographic data
+    ax[2].plot(np.arange(1, 101), f.tomo_data, '.', label="true")
+    ax[2].plot(np.arange(1, 101), f.noisy_tomo_data, 'r.', label="noisy")
+    ax[2].set_xlabel("LoS index", fontsize=12)
+    ax[2].set_xlim([-2, 103])
+    ax[2].set_xticks([1, 50, 100])
+    #ax[2].set_ylabel(r"$y$", rotation=0, fontsize=12, labelpad=10)
+    ax[2].set_title("Tomographic data")
+    ax[2].legend()
+
+    if save_dir is not None:
+        # save plot
+        plt.savefig(save_dir + "/phantom_and_sxr_diag.eps")
+
+    plt.show()
+
+
+def plot_uq_data(uq_data, ground_truth, psi, levels=12,
+                 plot_ground_truth=True, plot_MAP=False, plot_mean=False, plot_std=False,
+                 plot_nb_stds=False, plot_quantiles=False,
+                 plot_prad=False,
+                 quantiles_idx=2,
+                 mask_core=None,
+                 cmaps=None,
+                 vmin_quantile=0, vmax_std=1, vmax_nb_std=1,
+                 tcv_plot_clip=False, save_dir=None):
+
+    # Reshape ground truth and magnetic equilibrium if necessary
+    if ground_truth.shape != uq_data["im_MAP"].shape:
+        ground_truth = skimt.resize(ground_truth, uq_data["im_MAP"].shape, anti_aliasing=False, mode='edge')
+    if psi.shape != uq_data["im_MAP"].shape:
+        psi = skimt.resize(psi, uq_data["im_MAP"].shape, anti_aliasing=False, mode='edge')
+
+    # determine number of subplots
+    nb_subplots = np.sum(plot_ground_truth + plot_MAP + plot_mean + plot_std + plot_nb_stds + 2*plot_quantiles + plot_prad)
+    if not plot_prad:
+        fig_width = 2*nb_subplots
+        width_ratios = [1]*nb_subplots
+    else:
+        fig_width = 2*nb_subplots + 1
+        width_ratios = [1]*nb_subplots
+        width_ratios[-1] = 1.5
+
+    # define cmaps
+    if cmaps is None:
+        cmaps = ["viridis"]*nb_subplots
+    else:
+        assert len(cmaps) == nb_subplots - plot_prad, "`len(cmaps)` incompatible with `nb_subplots`"
+
+    # create figure
+    fig, ax = plt.subplots(1, nb_subplots, figsize=(fig_width, 3), width_ratios=width_ratios)
+    ax_counter = 0
+    if nb_subplots == 1:
+        ax = [ax]
+
+    # define max value for plots
+    vmax = np.max(uq_data["empirical_quantiles"][-quantiles_idx, :, :]) if plot_quantiles else 1
+
+    if plot_ground_truth:
+        # plot ground truth
+        plot_profile(ground_truth, tcv_plot_clip=tcv_plot_clip, contour_image=psi, levels=levels,
+                     ax=ax[ax_counter], colorbar=True, contour_color="w", vmax=vmax, cmap=cmaps[ax_counter])
+        if not plot_nb_stds and not plot_prad:
+            ax[ax_counter].set_title("Phantom")
+        else:
+            ax[ax_counter].set_title(r"Phantom $x$")
+        ax_counter += 1
+    if plot_MAP:
+        # plot MAP
+        plot_profile(uq_data["im_MAP"], tcv_plot_clip=tcv_plot_clip, contour_image=psi, levels=levels,
+                     ax=ax[ax_counter], colorbar=True, contour_color="w", vmax=vmax, cmap=cmaps[ax_counter])
+        ax[ax_counter].set_title(r"$x_{MAP}$")
+        ax_counter += 1
+    if plot_mean:
+        # plot ULA mean
+        plot_profile(uq_data["mean"], tcv_plot_clip=tcv_plot_clip, contour_image=psi, levels=levels,
+                     ax=ax[ax_counter], colorbar=True, contour_color="w", vmax=vmax, cmap=cmaps[ax_counter])
+        ax[ax_counter].set_title(r"$\mu_{ULA}$")
+        ax_counter += 1
+    if plot_std:
+        # plot ULA standard variation
+        plot_profile(np.sqrt(uq_data["var"]), tcv_plot_clip=tcv_plot_clip, contour_image=psi, levels=levels,
+                     ax=ax[ax_counter], colorbar=True, contour_color="w", vmax=vmax_std, cmap=cmaps[ax_counter])
+        ax[ax_counter].set_title(r"$\sigma_{ULA}$")
+        ax_counter += 1
+    if plot_nb_stds:
+        # plot distance from mean in terms of number of standard deviations
+        tbp = np.abs(uq_data["mean"] - ground_truth)
+        tbp /= np.sqrt(uq_data["var"])
+        plot_profile(tbp, tcv_plot_clip=tcv_plot_clip, contour_image=psi, levels=levels,
+                     ax=ax[ax_counter], colorbar=True, contour_color="w", vmax=vmax_nb_std, cmap=cmaps[ax_counter])
+        ax[ax_counter].set_title(r'$\vert \mu_{ULA} - x \vert\,/\,\sigma_{ULA}$')
+        ax_counter += 1
+    if plot_quantiles:
+        # plot quantiles
+        plot_profile(uq_data["empirical_quantiles"][quantiles_idx-1, :, :], tcv_plot_clip=tcv_plot_clip, contour_image=psi, levels=levels,
+                     ax=ax[ax_counter], colorbar=True, contour_color="w", vmin=vmin_quantile, vmax=vmax, cmap=cmaps[ax_counter])
+        ax[ax_counter].set_title('{} quantile'.format(uq_data["quantile_marks"][quantiles_idx-1]))
+        ax_counter += 1
+        plot_profile(uq_data["empirical_quantiles"][-quantiles_idx, :, :], tcv_plot_clip=tcv_plot_clip, contour_image=psi, levels=levels,
+                     ax=ax[ax_counter], colorbar=True, contour_color="w", vmax=vmax, cmap=cmaps[ax_counter])
+        ax[ax_counter].set_title('{} quantile'.format(uq_data["quantile_marks"][-quantiles_idx]))
+        ax_counter += 1
+    if plot_prad:
+        # plot radiated power
+        ax[ax_counter].hist(uq_data["prads_core"], bins=int(5e2), density=True, color="b")
+        ax[ax_counter].set_title(r'$P_{rad}^{core}$')
+        min_prad = np.min(np.array([np.min(uq_data["prads_core"]), np.min(uq_data["prad_map_core"])]))
+        max_prad = np.max(np.array([np.max(uq_data["prads_core"]), np.max(uq_data["prad_map_core"])]))
+        xrange_prad = [0.95*min_prad, 1.05*max_prad]
+        ax[ax_counter].set_xlim(xrange_prad)
+        if mask_core is not None:
+            true_prad_core = tomo_helps.compute_radiated_power(ground_truth, mask_core, uq_data["sampling"])
+            ax[ax_counter].axvline(x=true_prad_core, ymin=0, ymax=30, color='g', label=r"$P_{rad}^{core}(x)$")
+        ax[ax_counter].axvline(x=uq_data["prad_map_core"], ymin=0, ymax=30, color='r', label=r"$P_{rad}^{core}(x_{MAP})$")
+        ax[ax_counter].legend(loc="upper right")
+        ax[ax_counter].set_yticks([])
+
+    if save_dir is not None:
+        # save plot
+        plt.savefig(save_dir + "/phantom_and_sxr_diag.eps")
+
+    plt.show()
+
+
+
+
 
 
 

@@ -84,7 +84,7 @@ def run_ula(f, g, reg_param,
             psi, trim_values_x,
             with_pos_constraint=False,
             clip_iterations=None,
-            estimate_quantiles=False, quantile_marks=[0.05, 0.5, 0.95],
+            estimate_quantiles=False, quantile_marks=[0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99],
             compute_stats_wrt_MAP=False,
             samples=int(1e5), burn_in=int(1e3), thinning_factor=1,
             seed=0):
@@ -116,6 +116,8 @@ def run_ula(f, g, reg_param,
     var_prad_ula_core = OnlineVariance()
     mean_prad_ula_tcv = OnlineMoment(order=1)
     var_prad_ula_tcv = OnlineVariance()
+    mean_tomo_data = OnlineMoment(order=1)
+    var_tomo_data = OnlineVariance()
     if compute_stats_wrt_MAP:
         # moments wrt MAP
         var_ula_wrtMAP = OnlineMoment(order=2)
@@ -128,17 +130,23 @@ def run_ula(f, g, reg_param,
 
     # Run ULA
     print("Running {} ULA iterations".format(samples))
-    prads_tcv = np.zeros(int(samples/thinning_factor), dtype=np.float16)
-    prads_core = np.zeros(int(samples/thinning_factor), dtype=np.float16)
+    prads_tcv = np.zeros(int(samples/thinning_factor), dtype=np.float32)
+    prads_core = np.zeros(int(samples/thinning_factor), dtype=np.float32)
 
     # initialize data
     data = {}
-
+    data["tomo_data"], data["noisy_tomo_data"], data["sigma_err"] = f.tomo_data, f.noisy_tomo_data, f.sigma_err
+    data["reg_param"], data["sampling"] = reg_param, g.sampling
+    if 'Anis' in g._name:
+        data["alpha"] = g.diffusion_coefficient.alpha
+    data["with_pos_constraint"], data["clip_iterations"] = with_pos_constraint, clip_iterations
+    data["samples"], data["burn_in"], data["thinning_factor"] = samples, burn_in, thinning_factor
     if estimate_quantiles:
         # retain one sample every 1000 for quantile estimation
         quantile_samples = np.zeros((int(1e3), np.sum(clipping_mask)), dtype=np.float16)
         quantile_sample_interval = int(samples/1e3)
         quantile_sample_counter = 0
+        data["quantile_marks"] = quantile_marks
 
     for i in range(burn_in):
         # Burn-in phase
@@ -170,6 +178,9 @@ def run_ula(f, g, reg_param,
             prad_core = np.array([prad_core])
             mean_prad_tcv, var_prad_tcv = mean_prad_ula_tcv.update(prad_tcv), var_prad_ula_tcv.update(prad_tcv)
             mean_prad_core, var_prad_core = mean_prad_ula_core.update(prad_core), var_prad_ula_core.update(prad_core)
+            # tomographic data
+            mean_tomo_data.update(f.forward_model_linop(sample))
+            var_tomo_data.update(f.forward_model_linop(sample))
 
             if compute_stats_wrt_MAP:
                 # update moments computed wrt MAP
@@ -181,11 +192,11 @@ def run_ula(f, g, reg_param,
                 var_prad_wrtMAP_core = var_prad_ula_wrtMAP_core.update(prad_wrtMAP_core)
 
     # store data
-    data = {}
     data["mean"], data["var"] = mean, var
     data["mean_prad_tcv"], data["var_prad_tcv"] = mean_prad_tcv, var_prad_tcv
     data["mean_prad_core"], data["var_prad_core"] = mean_prad_core, var_prad_core
     data["prads_tcv"], data["prads_core"] = prads_tcv, prads_core
+    data["mean_tomo_data"], data["var_prad_data"] = mean_tomo_data, var_tomo_data
     if compute_stats_wrt_MAP:
         data["im_MAP"] = im_MAP
         data["prad_map_tcv"], data["prad_map_core"] = prad_MAP_tcv, prad_MAP_core
