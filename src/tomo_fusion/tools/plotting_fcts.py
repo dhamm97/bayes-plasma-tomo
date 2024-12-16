@@ -37,7 +37,7 @@ def plot_errbar(xp, m, var, left=1, right=1, col="red", linewidth=2):
     plt.plot([xp-left, xp+right], [m+var, m+var], color=col, linewidth=linewidth)
     plt.plot([xp-left, xp+right], [m-var, m-var], color=col)
     plt.plot([xp, xp], [m+var, m-var], color=col)
-    plt.plot(xp, m, '.', color=col, markersize=10)
+    #plt.plot(xp, m, '.', color=col, markersize=10)
 
 
 def plot_errbar_ax(ax, xp, m, var, left=1, right=1, col="red", linewidth=2):
@@ -228,7 +228,7 @@ def plot_uq_data(uq_data, ground_truth, psi, levels=12,
                  quantiles_idx=2,
                  mask_core=None,
                  cmaps=None,
-                 vmin_quantile=0, vmax_std=1, vmax_nb_std=1,
+                 vmin_quantile=0, vmax_std=1, vmax_nb_std=1, vmax_adjust_if_quantile=True,
                  tcv_plot_clip=False, save_dir=None):
 
     # Reshape ground truth and magnetic equilibrium if necessary
@@ -260,7 +260,7 @@ def plot_uq_data(uq_data, ground_truth, psi, levels=12,
         ax = [ax]
 
     # define max value for plots
-    vmax = np.max(uq_data["empirical_quantiles"][-quantiles_idx, :, :]) if plot_quantiles else 1
+    vmax = np.max(uq_data["empirical_quantiles"][-quantiles_idx, :, :]) if (plot_quantiles and vmax_adjust_if_quantile) else 1
 
     if plot_ground_truth:
         # plot ground truth

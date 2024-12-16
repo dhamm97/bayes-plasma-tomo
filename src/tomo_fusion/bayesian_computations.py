@@ -116,8 +116,12 @@ def run_ula(f, g, reg_param,
     var_prad_ula_core = OnlineVariance()
     mean_prad_ula_tcv = OnlineMoment(order=1)
     var_prad_ula_tcv = OnlineVariance()
-    mean_tomo_data = OnlineMoment(order=1)
-    var_tomo_data = OnlineVariance()
+    # tomographic data
+    mean_tomo_ula = OnlineMoment(order=1)
+    var_tomo_ula = OnlineVariance()
+    # peak position
+    mean_peak_loc_ula = OnlineMoment(order=1)
+    var_peak_loc_ula = OnlineVariance()
     if compute_stats_wrt_MAP:
         # moments wrt MAP
         var_ula_wrtMAP = OnlineMoment(order=2)
@@ -143,7 +147,8 @@ def run_ula(f, g, reg_param,
     data["samples"], data["burn_in"], data["thinning_factor"] = samples, burn_in, thinning_factor
     if estimate_quantiles:
         # retain one sample every 1000 for quantile estimation
-        quantile_samples = np.zeros((int(1e3), np.sum(clipping_mask)), dtype=np.float16)
+        num_pixels = f.dim_size if clipping_mask is None else np.sum(clipping_mask)
+        quantile_samples = np.zeros((int(1e3), num_pixels), dtype=np.float16)
         quantile_sample_interval = int(samples/1e3)
         quantile_sample_counter = 0
         data["quantile_marks"] = quantile_marks
@@ -179,8 +184,11 @@ def run_ula(f, g, reg_param,
             mean_prad_tcv, var_prad_tcv = mean_prad_ula_tcv.update(prad_tcv), var_prad_ula_tcv.update(prad_tcv)
             mean_prad_core, var_prad_core = mean_prad_ula_core.update(prad_core), var_prad_ula_core.update(prad_core)
             # tomographic data
-            mean_tomo_data.update(f.forward_model_linop(sample))
-            var_tomo_data.update(f.forward_model_linop(sample))
+            mean_tomo = mean_tomo_ula.update(f.forward_model_linop(sample))
+            var_tomo = var_tomo_ula.update(f.forward_model_linop(sample))
+            # estimate position of peak emissivity
+            peak_loc = np.array(np.where(sample == np.max(sample)), dtype=np.float64).flatten()
+            mean_peak_loc, var_peak_loc = mean_peak_loc_ula.update(peak_loc), var_peak_loc_ula.update(peak_loc)
 
             if compute_stats_wrt_MAP:
                 # update moments computed wrt MAP
@@ -196,7 +204,8 @@ def run_ula(f, g, reg_param,
     data["mean_prad_tcv"], data["var_prad_tcv"] = mean_prad_tcv, var_prad_tcv
     data["mean_prad_core"], data["var_prad_core"] = mean_prad_core, var_prad_core
     data["prads_tcv"], data["prads_core"] = prads_tcv, prads_core
-    data["mean_tomo_data"], data["var_prad_data"] = mean_tomo_data, var_tomo_data
+    data["mean_tomo_data"], data["var_tomo_data"] = mean_tomo, var_tomo
+    data["mean_peak_loc"], data["var_peak_loc"] = mean_peak_loc, var_peak_loc
     if compute_stats_wrt_MAP:
         data["im_MAP"] = im_MAP
         data["prad_map_tcv"], data["prad_map_core"] = prad_MAP_tcv, prad_MAP_core
@@ -210,7 +219,10 @@ def run_ula(f, g, reg_param,
             sample_index = int(mark * quantile_samples.shape[0])
             quantile_vals_mask = quantile_samples[sample_index, :]
             quantile_emissivity = np.zeros(f.dim_shape[1:])
-            quantile_emissivity[clipping_mask] = quantile_vals_mask
+            if clipping_mask is not None:
+                quantile_emissivity[clipping_mask] = quantile_vals_mask
+            else:
+                quantile_emissivity = quantile_vals_mask.reshape(f.dim_shape[1:])
             quantile_values[mark_id, :] = quantile_emissivity
         data["empirical_quantiles"] = quantile_values
 
