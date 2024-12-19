@@ -191,7 +191,7 @@ def generate_sxr_samples(psi_fct, dim_shape=(1, 120, 40), sampling=0.0125,
         sxr_samples.append(x0.reshape(dim_shape).squeeze())
         # add gaussian background
         x0_plus_background = add_gaussian_background(x0.reshape(dim_shape).squeeze(), psi,
-                                                     mask_core, peak_values_gaussian_background[i])
+                                                     mask_core.reshape(dim_shape[1], dim_shape[2]), peak_values_gaussian_background[i])
         sxr_samples_with_background.append(x0_plus_background)
         psis.append(psi)
         #print("loop-get-time", time.time()-st)
