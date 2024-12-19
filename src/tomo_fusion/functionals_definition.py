@@ -94,6 +94,7 @@ def _DataFidelityFunctional(dim_shape: pxt.NDArrayShape, noisy_tomo_data: pxt.ND
 
 
 def define_loglikelihood_and_logprior(ground_truth, psi,
+                                      reconstruction_shape=(1, 120, 40),
                                sigma_err=1e-2,
                                reg_fct_type="coherence_enhancing",
                                alpha=1e-2, sampling=0.0125,
@@ -108,8 +109,8 @@ def define_loglikelihood_and_logprior(ground_truth, psi,
     else:
         raise ValueError("Ground truth shape must be `(120, 40)` or `(240, 80)`")
     # Reshape magnetic equilibrium if necessary
-    if psi.shape == (240, 80):
-        psi = skimt.resize(psi, dim_shape_coarse[1:], anti_aliasing=False, mode='edge')
+    if psi.shape != reconstruction_shape[1:]:
+        psi = skimt.resize(psi, reconstruction_shape[1:], anti_aliasing=False, mode='edge')
 
     # Compute noisy data
     np.random.seed(seed)
@@ -119,12 +120,12 @@ def define_loglikelihood_and_logprior(ground_truth, psi,
         plt_tools.plot_tomo_data(tomo_data, noisy_tomo_data)
 
     # Define data-fidelity term
-    f = _DataFidelityFunctional(dim_shape=dim_shape_coarse, noisy_tomo_data=noisy_tomo_data, sigma_err=sigma_err, grid="coarse")
+    f = _DataFidelityFunctional(dim_shape=reconstruction_shape, noisy_tomo_data=noisy_tomo_data, sigma_err=sigma_err, grid="coarse")
     f.tomo_data = tomo_data
 
     # Define regularization functional
     if reg_fct_type == "coherence_enhancing":
-        g = px_diffops.AnisCoherenceEnhancingDiffusionOp(dim_shape=dim_shape_coarse,
+        g = px_diffops.AnisCoherenceEnhancingDiffusionOp(dim_shape=reconstruction_shape,
                                                         alpha=alpha,
                                                         m=1,
                                                         sigma_gd_st=1*sampling,
@@ -133,7 +134,7 @@ def define_loglikelihood_and_logprior(ground_truth, psi,
                                                         sampling=sampling,
                                                         matrix_based_impl=True)
     elif reg_fct_type == "anisotropic":
-        g = px_diffops.AnisDiffusionOp(dim_shape=dim_shape_coarse,
+        g = px_diffops.AnisDiffusionOp(dim_shape=reconstruction_shape,
                                        alpha=alpha,
                                        diff_method_struct_tens="fd",
                                        freezing_arr=psi,

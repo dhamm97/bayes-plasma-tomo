@@ -1,23 +1,39 @@
 import numpy as np
 import skimage.transform as skimt
-from pyxu_diffops.operator import AnisCoherenceEnhancingDiffusionOp
+from pyxu_diffops.operator import AnisCoherenceEnhancingDiffusionOp, AnisDiffusionOp
 import argparse
 
 from src.tomo_fusion.tools.helpers import define_core_mask
 
 
-def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40), sampling=0.0125, steps_nb_factor=1, nsamples=1e3, seed=0, save=False, save_dir='sxr_samples',
+def add_gaussian_background(phantom, psi, mask, peak_value_gaussian=0., sigma_gaussian_normalized_radius=0.5):
+    gaussian_profile = peak_value_gaussian * np.exp(-((psi-np.min(psi))/(np.min(psi)))**2 / (2*sigma_gaussian_normalized_radius**2))
+    gaussian_profile *= mask
+    phantom_new = phantom + gaussian_profile
+    phantom_new /= np.max(phantom_new)
+    return phantom_new
+
+
+def generate_sxr_samples(psi_fct, dim_shape=(1, 120, 40), sampling=0.0125,
+                                                  reg_fct_type="coherence_enhancing",
+                                                  sigma_gd_st_factor=1, smooth_sigma_st_factor=2,
+                                                  steps_nb_factor=1, nsamples=1e3, seed=0, save=False, save_dir='sxr_samples',
                                                   clip_each_iter=False, clipping_outside_core=False,
                                                   psi_upperbound_source_rel=0.4,
                                                   psi_lowerbound_source_rel=1, xpoint_idx_base_psi=90,
-                                                  diff_method_struct_tens="gd", nsources=1, gpu=False):
+                                                  diff_method_struct_tens="gd", nsources=1, gpu=False,
+                                                  peak_values_gaussian_background=None):
     if gpu:
         import cupy as cp
+    if peak_values_gaussian_background is None:
+        # if no peak values for gaussian background are provided, initialize to zero (no background)
+        peak_values_gaussian_background = np.zeros(nsamples)
     # define bounds for psi defining allowed source locations
-    psi_upperbound_source = psi_upperbound_source_rel * np.min(Bfield)
-    psi_lowerbound_source = psi_lowerbound_source_rel * np.min(Bfield)
+    psi_upperbound_source = psi_upperbound_source_rel * np.min(psi_fct)
+    psi_lowerbound_source = psi_lowerbound_source_rel * np.min(psi_fct)
     # instantiate lists for generated samples
     sxr_samples = []
+    sxr_samples_with_background = []
     psis = []
 
     # fix seed and sample/initialize random quantities to generate samples
@@ -42,7 +58,7 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
         trimming_values[i, :] = np.array([upper_trim, lower_trim, hfs_trim, lfs_trim])
 
         # resize psi function to match prescribed discretization
-        psi = skimt.resize(Bfield[upper_trim:lower_trim, hfs_trim:lfs_trim], dim_shape[1:], anti_aliasing=True,
+        psi = skimt.resize(psi_fct[upper_trim:lower_trim, hfs_trim:lfs_trim], dim_shape[1:], anti_aliasing=True,
                            mode='edge')
 
         # sample random location for the source
@@ -62,7 +78,7 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
         sources_idx = np.random.randint(0, nonzero_elems - 1, size=(nsources,))
 
         # create source image
-        x0 = np.zeros((dim_shape[1], dim_shape[2]), dtype=Bfield.dtype)
+        x0 = np.zeros((dim_shape[1], dim_shape[2]), dtype=psi_fct.dtype)
         for j in range(nsources):
             x0[mask_locs[0][sources_idx[j]]:mask_locs[0][sources_idx[j]] + 2,
             mask_locs[1][sources_idx[j]]:mask_locs[1][sources_idx[j]] + 2] = 1
@@ -110,11 +126,20 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
 
         #breakpoint()
         #st = time.time()
+        if reg_fct_type == "coherence_enhancing":
+            reg_fct = AnisCoherenceEnhancingDiffusionOp(dim_shape=dim_shape, alpha=alpha_random_values[i], m=1,
+                                                        sigma_gd_st=sigma_gd_st_factor * sampling, smooth_sigma_st=smooth_sigma_st_factor * sampling,
+                                                        sampling=sampling, diff_method_struct_tens=diff_method_struct_tens,
+                                                        freezing_arr=psi, matrix_based_impl=True, gpu=gpu, dtype=psi_fct.dtype)
+        elif reg_fct_type == "anisotropic":
+            reg_fct = AnisDiffusionOp(dim_shape=dim_shape,
+                                           alpha=alpha_random_values[i],
+                                           diff_method_struct_tens=diff_method_struct_tens,
+                                           freezing_arr=psi,
+                                           sampling=sampling,
+                                           matrix_based_impl=True,
+                                           gpu=gpu, dtype=psi_fct.dtype)
 
-        reg_fct = AnisCoherenceEnhancingDiffusionOp(dim_shape=dim_shape, alpha=alpha_random_values[i], m=1,
-                                                    sigma_gd_st=1 * sampling, smooth_sigma_st=2 * sampling,
-                                                    sampling=sampling, diff_method_struct_tens=diff_method_struct_tens,
-                                                    freezing_arr=psi, matrix_based_impl=True, gpu=gpu, dtype=Bfield.dtype)
         #print(reg_fct._grad_matrix_based.mat.dtype, type(reg_fct._grad_matrix_based.mat))
         #reg_fct._grad_matrix_based.mat = reg_fct._grad_matrix_based.mat.astype(Bfield.dtype)
         #reg_fct._grad_matrix_based.mat = sp.csr_matrix(reg_fct._grad_matrix_based.mat).
@@ -163,7 +188,12 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
         if gpu:
             x0 = x0.get()
             psi = psi.get()
-        sxr_samples.append(x0.reshape(dim_shape))
+
+        sxr_samples.append(x0.reshape(dim_shape).squeeze())
+        # add gaussian background
+        x0_plus_background = add_gaussian_background(x0.reshape(dim_shape).squeeze(), psi,
+                                                     mask_core, peak_values_gaussian_background[i])
+        sxr_samples_with_background.append(x0_plus_background)
         psis.append(psi)
         #print("loop-get-time", time.time()-st)
 
@@ -174,12 +204,14 @@ def generate_sxr_samples_arbitrary_discretization(Bfield, dim_shape=(1, 120, 40)
             if not os.path.isdir(save_dir):
                 os.mkdir(save_dir)
             np.save(save_dir + '/sxr_samples.npy', sxr_samples)
+            np.save(save_dir + '/sxr_samples_with_background.npy', sxr_samples_with_background)
             np.save(save_dir + '/psis.npy', psis)
             np.save(save_dir + '/diffusive_steps.npy', diffusive_steps)
             np.save(save_dir + '/alpha_random_values.npy', alpha_random_values)
             np.save(save_dir + '/psis_at_source.npy', psis_at_source)
             np.save(save_dir + '/trimming_values.npy', trimming_values)
             np.save(save_dir + '/source_loc.npy', source_loc)
+            np.save(save_dir + '/peak_values_gaussian_background.npy', peak_values_gaussian_background)
         #print("loop-get-save-time", time.time()-st)
         #breakpoint()
     return sxr_samples, psis
@@ -192,17 +224,49 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args.gpu)
 
-    B_solps = np.load('../../tomo_fusion/phantoms/Bfield_solps/psi_eq_SOLPS.npy')
+    psi_eq = np.load('magnetic_equilibrium.npy')
 
-    _, _ = generate_sxr_samples_arbitrary_discretization(100*B_solps, dim_shape=(1, 240, 80), sampling=0.00625, steps_nb_factor=2,
-                                                    nsamples=int(2e3), seed=0, save=True, save_dir="sxr_samples_fine_discretization",
-                                                    clip_each_iter=True, clipping_outside_core=True,
-                                                    diff_method_struct_tens="gd", gpu=args.gpu)
+    nsamples = int(1e3)
 
-    _, _ = generate_sxr_samples_arbitrary_discretization(100*B_solps, dim_shape=(1, 120, 40), sampling=0.0125,
-                                                    nsamples=int(2e3), seed=0, save=True, save_dir="sxr_samples",
+    # define random peak values of gaussian background to be added to perturbations
+    np.random.seed(0)
+    min_peak_value = 0.2
+    peak_vals = min_peak_value + (1-min_peak_value) * np.random.rand(nsamples)
+
+    _, _ = generate_sxr_samples(psi_eq, dim_shape=(1, 240, 80),
+                                                         reg_fct_type="coherence_enhancing",
+                                                         sigma_gd_st_factor=0, smooth_sigma_st_factor=2,
+                                                         sampling=0.00625, steps_nb_factor=2,
+                                                    nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_fine_discretization_new",
                                                     clip_each_iter=True, clipping_outside_core=True,
-                                                    diff_method_struct_tens="gd", gpu=args.gpu)
+                                                    diff_method_struct_tens="fd", gpu=args.gpu,
+                                                    peak_values_gaussian_background=peak_vals)
+
+    _, _ = generate_sxr_samples(psi_eq, dim_shape=(1, 120, 40),
+                                                         reg_fct_type="coherence_enhancing",
+                                                         sigma_gd_st_factor=0, smooth_sigma_st_factor=1,
+                                                         sampling=0.0125,
+                                                    nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_new",
+                                                    clip_each_iter=True, clipping_outside_core=True,
+                                                    diff_method_struct_tens="fd", gpu=args.gpu,
+                                                    peak_values_gaussian_background=peak_vals)
+
+    _, _ = generate_sxr_samples(psi_eq, dim_shape=(1, 240, 80),
+                                                         reg_fct_type="anisotropic",
+                                                         sampling=0.00625, steps_nb_factor=2,
+                                                    nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_fine_discretization_anisotropic_new",
+                                                    clip_each_iter=True, clipping_outside_core=True,
+                                                    diff_method_struct_tens="fd", gpu=args.gpu,
+                                                    peak_values_gaussian_background=peak_vals)
+
+    _, _ = generate_sxr_samples(psi_eq, dim_shape=(1, 120, 40),
+                                                         reg_fct_type="anisotropic",
+                                                         sampling=0.0125,
+                                                    nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_anisotropic_new",
+                                                    clip_each_iter=True, clipping_outside_core=True,
+                                                    diff_method_struct_tens="fd", gpu=args.gpu,
+                                                    peak_values_gaussian_background=peak_vals)
+
 
 
 

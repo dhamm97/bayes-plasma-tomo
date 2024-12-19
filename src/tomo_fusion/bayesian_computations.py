@@ -84,7 +84,7 @@ def run_ula(f, g, reg_param,
             psi, trim_values_x,
             with_pos_constraint=False,
             clip_iterations=None,
-            estimate_quantiles=False, quantile_marks=[0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99],
+            estimate_quantiles=False, quantile_marks=[0.005, 0.025, 0.05, 0.25, 0.5, 0.75, 0.95, 0.975, 0.995],
             compute_stats_wrt_MAP=False,
             samples=int(1e5), burn_in=int(1e3), thinning_factor=1,
             seed=0):

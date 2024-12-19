@@ -35,8 +35,8 @@ def plot_tomo_data(tomo_data, noisy_tomo_data):
 
 def plot_errbar(xp, m, var, left=1, right=1, col="red", linewidth=2):
     plt.plot([xp-left, xp+right], [m+var, m+var], color=col, linewidth=linewidth)
-    plt.plot([xp-left, xp+right], [m-var, m-var], color=col)
-    plt.plot([xp, xp], [m+var, m-var], color=col)
+    plt.plot([xp-left, xp+right], [m-var, m-var], color=col, linewidth=linewidth)
+    plt.plot([xp, xp], [m+var, m-var], color=col, linewidth=linewidth)
     #plt.plot(xp, m, '.', color=col, markersize=10)
 
 
