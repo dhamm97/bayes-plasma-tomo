@@ -176,7 +176,7 @@ def anis_param_tuning(f, g, reg_param, with_pos_constraint=False,
                       clipping_mask=None, ground_truth=None,
                      anis_params=np.logspace(-4,0,5),
                      tuning_techniques='CV_single',
-                     cv_strategy="random",
+                     cv_strategy=["random"],
                      seed=0, plot=False, plot_ssim=False):
     """
 
@@ -198,7 +198,8 @@ def anis_param_tuning(f, g, reg_param, with_pos_constraint=False,
 
     anis_param_tuning_data = {}
 
-    cv_strategy = tuple(cv_strategy)
+    if not isinstance(cv_strategy, list):
+        cv_strategy = [cv_strategy]
 
     if ground_truth is not None:
         if ground_truth.shape == (240, 80):
