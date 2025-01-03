@@ -83,10 +83,10 @@ def _DataFidelityFunctional(dim_shape: pxt.NDArrayShape, noisy_tomo_data: pxt.ND
             geometry_matrix = sp.load_npz(dir_geom_mats+"/sparse_geometry_matrix_sxr.npz")
         elif grid == "fine":
             geometry_matrix = sp.load_npz(dir_geom_mats+"/sparse_geometry_matrix_sxr_fine_grid.npz")
+    # define explicit LinOp from geometry matrix
+    forward_model_linop = _ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=geometry_matrix)
+    forward_model_linop.lipschitz = sp.linalg.norm(geometry_matrix, 2)
     if isinstance(sigma_err, float) or (isinstance(sigma_err, np.ndarray) and sigma_err.size == 1):
-        # define explicit LinOp from geometry matrix
-        forward_model_linop = _ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=geometry_matrix)
-        forward_model_linop.lipschitz = sp.linalg.norm(geometry_matrix, 2)
         op = 1 / (2 * sigma_err ** 2) * pyxop.SquaredL2Norm(dim_shape=(noisy_tomo_data.size,)).argshift(-noisy_tomo_data.flatten()) * forward_model_linop
     elif (isinstance(sigma_err, list) and len(sigma_err) == 2) or (isinstance(sigma_err, np.ndarray) and sigma_err.size == 2):
         sigma_err_vec = sigma_err[0] + sigma_err[1] * noisy_tomo_data
@@ -100,7 +100,7 @@ def _DataFidelityFunctional(dim_shape: pxt.NDArrayShape, noisy_tomo_data: pxt.ND
             warnings.simplefilter("ignore")
             normalized_forward_model_linop.lipschitz = sp.linalg.norm(normalized_geometry_matrix, 2)
         op = 1 / 2 * pyxop.SquaredL2Norm(dim_shape=(noisy_tomo_data.size,)).argshift(-normalized_noisy_tomo_data.flatten()) * normalized_forward_model_linop
-        forward_model_linop = normalized_forward_model_linop
+        op.normalized_forward_model_linop = normalized_forward_model_linop
     # define data-fidelity functional
     #op = 1 / (2 * sigma_err ** 2) * pyxop.SquaredL2Norm(dim_shape=(noisy_tomo_data.size,)).argshift(-noisy_tomo_data.flatten()) * forward_model_linop
     op.sigma_err = sigma_err
@@ -208,7 +208,7 @@ def define_loglikelihood_cv(f, cv_type="CV_single", cv_strategy="random", seed=0
                                                   geometry_matrix=f.forward_model_linop.mat[cv_idx, :])
             f_cv_.tomo_data = f.tomo_data[cv_idx]
             f_cv_.cv_idx = cv_idx
-            f_cv_.cv_test_idx = idxs[i * 20: (i + 1) * 20]
+            f_cv_.cv_test_idx = idxs[idxs[i * 20: (i + 1) * 20]]
             # append i-th functional to the list
             f_cv.append(f_cv_)
 

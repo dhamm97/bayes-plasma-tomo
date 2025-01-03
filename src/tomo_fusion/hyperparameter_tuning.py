@@ -54,6 +54,21 @@ def run_sapg(f_sapg, g_sapg, lambda_min=1e-6, lambda_max=1e0,
     return lambda_list
 
 
+def _compute_tomo_data_mse(f, im_MAP, indices=None):
+    if indices is None:
+        indices = np.arange(0, 100)
+    if isinstance(f.sigma_err, float) or (isinstance(f.sigma_err, np.ndarray) and f.sigma_err.size == 1):
+        # scalar sigma, compute mse
+        return np.mean((f.forward_model_linop(im_MAP)[indices]-f.noisy_tomo_data[indices])**2)
+    elif ((isinstance(f.sigma_err, list) and len(f.sigma_err) == 2)
+          or (isinstance(f.sigma_err, np.ndarray) and f.sigma_err.size == 2)):
+        # vector sigma, compute mse normalizing by signal intensity when needed
+        #sigma_err_vec = f.sigma_err[0] + f.sigma_err[1] * f.noisy_tomo_data[indices]
+        tmp = (f.forward_model_linop(im_MAP)[indices]-f.noisy_tomo_data[indices])
+        #tmp /= sigma_err_vec
+        return np.mean(tmp**2)
+
+
 def reg_param_tuning(f, g, with_pos_constraint=False,
                      clipping_mask=None, ground_truth=None,
                      reg_params=np.logspace(-6,0,7),
@@ -100,7 +115,8 @@ def reg_param_tuning(f, g, with_pos_constraint=False,
         for i, reg_param in enumerate(reg_params):
             im_MAP = bcomp.compute_MAP(f, g, reg_param, with_pos_constraint, clipping_mask, show_progress=False)
             #tomo_data_MSE[i] = f(im_MAP) * (2 * f.sigma_err**2) / f.dim_size
-            tomo_data_MSE[i] = np.mean((f.forward_model_linop(im_MAP)-f.noisy_tomo_data)**2)
+            #tomo_data_MSE[i] = np.mean((f.forward_model_linop(im_MAP)-f.noisy_tomo_data)**2)
+            tomo_data_MSE[i] = _compute_tomo_data_mse(f, im_MAP)
             MSE[i] = np.mean((ground_truth - im_MAP) ** 2)
             ssim_val[i] = ssim(ground_truth, im_MAP, data_range=im_MAP.max() - im_MAP.min())
         reg_param_tuning_data['GT'] = np.vstack((reg_params, tomo_data_MSE, MSE, ssim_val))
@@ -259,11 +275,12 @@ def anis_param_tuning(f, g, reg_param, with_pos_constraint=False,
                     for i, anis_param in enumerate(anis_params):
                         g_ = _redefine_anis_param_logprior(g, anis_param)
                         im_MAP = bcomp.compute_MAP(f_cv[cv_round], g_, reg_param, with_pos_constraint, clipping_mask, show_progress=False)
-                        # tomo_data_MSE[i] += (f(im_MAP) - f_cv[cv_round](im_MAP)) * (2 * f.sigma_err ** 2) / f_cv[cv_round].cv_test_idx.size
-                        tomo_data_MSE[i] += np.mean(
-                            (f.forward_model_linop(im_MAP)[f_cv[cv_round].cv_test_idx] - f.noisy_tomo_data[
-                                f_cv[cv_round].cv_test_idx]) ** 2
-                        )
+                        #tomo_data_MSE[i] += (f(im_MAP) - f_cv[cv_round](im_MAP)) * (2 * f.sigma_err ** 2) / f_cv[cv_round].cv_test_idx.size
+                        #tomo_data_MSE[i] += np.mean(
+                        #    (f.forward_model_linop(im_MAP)[f_cv[cv_round].cv_test_idx] - f.noisy_tomo_data[
+                        #        f_cv[cv_round].cv_test_idx]) ** 2
+                        #)
+                        tomo_data_MSE[i] += _compute_tomo_data_mse(f, im_MAP, indices=f_cv[cv_round].cv_test_idx)
                         if ground_truth is not None:
                             MSE[i] += np.mean((ground_truth - im_MAP) ** 2)
                             ssim_val[i] += ssim(ground_truth, im_MAP, data_range=im_MAP.max() - im_MAP.min())
