@@ -88,10 +88,9 @@ def _DataFidelityFunctional(dim_shape: pxt.NDArrayShape, noisy_tomo_data: pxt.ND
         forward_model_linop.lipschitz = sp.linalg.norm(geometry_matrix, 2)
         op = 1 / (2 * sigma_err ** 2) * pyxop.SquaredL2Norm(dim_shape=(noisy_tomo_data.size,)).argshift(-noisy_tomo_data.flatten()) * forward_model_linop
     elif (isinstance(sigma_err, list) and len(sigma_err) == 2) or (isinstance(sigma_err, np.ndarray) and sigma_err.size == 2):
-        sigma_err_vec = np.zeros(noisy_tomo_data.size)
         sigma_err_vec = sigma_err[0] + sigma_err[1] * noisy_tomo_data
         normalized_noisy_tomo_data = noisy_tomo_data.flatten() / sigma_err_vec
-        normalized_geometry_matrix = geometry_matrix / np.hstack([normalized_noisy_tomo_data.reshape(-1,1)]*geometry_matrix.shape[1])
+        normalized_geometry_matrix = geometry_matrix / np.hstack([sigma_err_vec.reshape(-1,1)]*geometry_matrix.shape[1])
         normalized_geometry_matrix = sp.csr_matrix(normalized_geometry_matrix)
         normalized_forward_model_linop = _ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=normalized_geometry_matrix)
         normalized_forward_model_linop.lipschitz = sp.linalg.norm(normalized_geometry_matrix, 2)
