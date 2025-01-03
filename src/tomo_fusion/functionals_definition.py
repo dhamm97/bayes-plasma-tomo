@@ -82,11 +82,23 @@ def _DataFidelityFunctional(dim_shape: pxt.NDArrayShape, noisy_tomo_data: pxt.ND
             geometry_matrix = sp.load_npz(dir_geom_mats+"/sparse_geometry_matrix_sxr.npz")
         elif grid == "fine":
             geometry_matrix = sp.load_npz(dir_geom_mats+"/sparse_geometry_matrix_sxr_fine_grid.npz")
-    # define explicit LinOp from geometry matrix
-    forward_model_linop = _ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=geometry_matrix)
-    forward_model_linop.lipschitz = sp.linalg.norm(geometry_matrix, 2)
+    if isinstance(sigma_err, float) or (isinstance(sigma_err, np.ndarray) and sigma_err.size == 1):
+        # define explicit LinOp from geometry matrix
+        forward_model_linop = _ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=geometry_matrix)
+        forward_model_linop.lipschitz = sp.linalg.norm(geometry_matrix, 2)
+        op = 1 / (2 * sigma_err ** 2) * pyxop.SquaredL2Norm(dim_shape=(noisy_tomo_data.size,)).argshift(-noisy_tomo_data.flatten()) * forward_model_linop
+    elif (isinstance(sigma_err, list) and len(sigma_err) == 2) or (isinstance(sigma_err, np.ndarray) and sigma_err.size == 2):
+        sigma_err_vec = np.zeros(noisy_tomo_data.size)
+        sigma_err_vec = sigma_err[0] + sigma_err[1] * noisy_tomo_data
+        normalized_noisy_tomo_data = noisy_tomo_data.flatten() / sigma_err_vec
+        normalized_geometry_matrix = geometry_matrix / np.hstack([normalized_noisy_tomo_data.reshape(-1,1)]*geometry_matrix.shape[1])
+        normalized_geometry_matrix = sp.csr_matrix(normalized_geometry_matrix)
+        normalized_forward_model_linop = _ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=normalized_geometry_matrix)
+        normalized_forward_model_linop.lipschitz = sp.linalg.norm(normalized_geometry_matrix, 2)
+        op = 1 / 2 * pyxop.SquaredL2Norm(dim_shape=(noisy_tomo_data.size,)).argshift(-normalized_noisy_tomo_data.flatten()) * normalized_forward_model_linop
+        forward_model_linop = normalized_forward_model_linop
     # define data-fidelity functional
-    op = 1 / (2 * sigma_err ** 2) * pyxop.SquaredL2Norm(dim_shape=(noisy_tomo_data.size,)).argshift(-noisy_tomo_data.flatten()) * forward_model_linop
+    #op = 1 / (2 * sigma_err ** 2) * pyxop.SquaredL2Norm(dim_shape=(noisy_tomo_data.size,)).argshift(-noisy_tomo_data.flatten()) * forward_model_linop
     op.sigma_err = sigma_err
     op.noisy_tomo_data = noisy_tomo_data
     op.forward_model_linop = forward_model_linop
@@ -115,7 +127,12 @@ def define_loglikelihood_and_logprior(ground_truth, psi,
     # Compute noisy data
     np.random.seed(seed)
     tomo_data = fwd_matrix.dot(ground_truth.flatten())
-    noisy_tomo_data = tomo_data + sigma_err * np.random.randn(*tomo_data.shape)
+    if isinstance(sigma_err, float) or (isinstance(sigma_err, np.ndarray) and sigma_err.size == 1):
+        noisy_tomo_data = tomo_data + sigma_err * np.random.randn(*tomo_data.shape)
+    elif (isinstance(sigma_err, list) and len(sigma_err) == 2) or (isinstance(sigma_err, np.ndarray) and sigma_err.size == 2):
+        noisy_tomo_data = (tomo_data
+                           + sigma_err[0] * np.random.randn(*tomo_data.shape)
+                           + sigma_err[1] * tomo_data * np.random.randn(*tomo_data.shape))
     if plot:
         plt_tools.plot_tomo_data(tomo_data, noisy_tomo_data)
 
