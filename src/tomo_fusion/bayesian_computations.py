@@ -87,7 +87,7 @@ def run_ula(f, g, reg_param,
             estimate_quantiles=False, quantile_marks=[0.005, 0.025, 0.05, 0.16, 0.25, 0.5, 0.75, 0.84, 0.95, 0.975, 0.995],
             compute_stats_wrt_MAP=False,
             samples=int(1e5), burn_in=int(1e3), thinning_factor=1,
-            seed=0):
+            seed=0, show_progress=False):
     # define ula objective function
     ula_obj = f + reg_param * g
     pos_constraint = pyxop.PositiveOrthant(dim_shape=f.dim_shape) if with_pos_constraint else None
@@ -128,7 +128,7 @@ def run_ula(f, g, reg_param,
         var_prad_ula_wrtMAP_tcv = OnlineMoment(order=2)
         var_prad_ula_wrtMAP_core = OnlineMoment(order=2)
         # compute MAP and radiated power
-        im_MAP = compute_MAP(f, g, reg_param, with_pos_constraint=with_pos_constraint, clipping_mask=clipping_mask)
+        im_MAP = compute_MAP(f, g, reg_param, with_pos_constraint=with_pos_constraint, clipping_mask=clipping_mask, show_progress=show_progress)
         prad_MAP_tcv = tomo_helps.compute_radiated_power(im_MAP, mask_tcv, g.sampling)
         prad_MAP_core = tomo_helps.compute_radiated_power(im_MAP, mask_core, g.sampling)
 
@@ -163,7 +163,7 @@ def run_ula(f, g, reg_param,
         if clipping_mask is not None:
             ula.x = clipping_mask * sample
 
-        if (i+1) % int(1e4) == 0:
+        if show_progress and (i+1) % int(1e4) == 0:
             print("iteration ", i+1)
 
         if estimate_quantiles:
