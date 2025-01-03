@@ -89,6 +89,11 @@ if __name__ == '__main__':
     # saving_dir_sigma01 = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_sigma01/'
     # reg_param_tuning_train_phantoms(sigma_level, phantom_dir, saving_dir_sigma01)
 
+    # # Noise level 5% + 5% signal-dependent noise
+    # sigma_level = [0.05, 0.05]
+    # saving_dir_sigma0005005 = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_sigma005005/'
+    # reg_param_tuning_train_phantoms(sigma_level, phantom_dir, saving_dir_sigma01)
+
     # reg_param_tuning directory
     # reg_param_tuning_dir = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/'
     # sigma_err = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/sigma_err.npy')
@@ -101,11 +106,22 @@ if __name__ == '__main__':
     #              phantom_indices=phantom_indices,
     #              phantom_dir=phantom_dir, saving_dir=saving_dir)
 
-    reg_param_tuning_dir = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma01/'
-    sigma_err = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma01/sigma_err.npy')
-    reg_param_median = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma01/reg_param_median.npy')
+    # reg_param_tuning_dir = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma01/'
+    # sigma_err = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma01/sigma_err.npy')
+    # reg_param_median = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma01/reg_param_median.npy')
+    # # saving directory
+    # saving_dir = 'uq_study_results/sigma01/'
+    # if not os.path.isdir(saving_dir):
+    #     os.mkdir(saving_dir)
+    # run_uq_study(sigma_err=sigma_err, reg_param=reg_param_median,
+    #              phantom_indices=phantom_indices,
+    #              phantom_dir=phantom_dir, saving_dir=saving_dir)
+
+    reg_param_tuning_dir = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005005/'
+    sigma_err = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005005/sigma_err.npy')
+    reg_param_median = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005005/reg_param_median.npy')
     # saving directory
-    saving_dir = 'uq_study_results/sigma01/'
+    saving_dir = 'uq_study_results/sigma005005/'
     if not os.path.isdir(saving_dir):
         os.mkdir(saving_dir)
     run_uq_study(sigma_err=sigma_err, reg_param=reg_param_median,

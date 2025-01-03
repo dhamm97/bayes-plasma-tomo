@@ -163,13 +163,21 @@ if __name__ == '__main__':
     # saving_dir_sigma01 = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_sigma01/'
     # reg_param_tuning_train_phantoms(sigma_level, phantom_dir, saving_dir_sigma01)
 
+    # # reg_param_tuning directory
+    # reg_param_tuning_dir = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/'
+    # sigma_err = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/sigma_err.npy')
+    # reg_param_mean = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_mean.npy')
+    # reg_param_median = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_median.npy')
+    # # saving directory
+    # saving_dir = 'hyperparam_tuning/anis_param_tuning_fine_anisotropic_newbounds_sigma005/'
+
     # reg_param_tuning directory
-    reg_param_tuning_dir = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/'
-    sigma_err = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/sigma_err.npy')
-    reg_param_mean = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_mean.npy')
-    reg_param_median = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_median.npy')
+    reg_param_tuning_dir = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005005/'
+    sigma_err = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005005/sigma_err.npy')
+    reg_param_median = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005005/reg_param_median.npy')
     # saving directory
-    saving_dir = 'hyperparam_tuning/anis_param_tuning_fine_anisotropic_newbounds_sigma005/'
+    saving_dir = 'hyperparam_tuning/anis_param_tuning_fine_anisotropic_newbounds_sigma005005/'
+
     if not os.path.isdir(saving_dir):
         os.mkdir(saving_dir)
     anis_param_tuning_train_phantoms(sigma_err=sigma_err, phantom_dir=phantom_dir,
