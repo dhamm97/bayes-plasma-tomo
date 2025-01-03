@@ -85,9 +85,9 @@ def plot_hyperparam_tuning_data(hyperparam_tuning_data, param="reg_param", true_
     for key in list(hyperparam_tuning_data.keys()):
         if key == "GT":
             suptitle_key = "Ground truth"
-        elif key == "CV_single":
+        elif "CV_single" in key:
             suptitle_key = "Cross Validation (1 fold)"
-        elif key == "CV_full":
+        elif "CV_full" in key:
             suptitle_key = "Cross Validation (5 fold)"
         else:
             raise ValueError(f"Unknown key {key}")
@@ -177,7 +177,7 @@ def plot_profile(image,
     return
 
 
-def plot_phantom_and_sxr_diag(ground_truth, psi, f, levels=12, tcv_plot_clip=False, save_dir=None):
+def plot_phantom_and_sxr_diag(ground_truth, psi, tomo_data, noisy_tomo_data, levels=12, tcv_plot_clip=False, save_dir=None):
     fig, ax = plt.subplots(1, 3, figsize=(8, 3), width_ratios=[1, 1, 1.5])
 
     # plot ground truth
@@ -205,8 +205,8 @@ def plot_phantom_and_sxr_diag(ground_truth, psi, f, levels=12, tcv_plot_clip=Fal
     ax[1].set_title("SXR diagnostic")
 
     # plot tomographic data
-    ax[2].plot(np.arange(1, 101), f.tomo_data, '.', label="true")
-    ax[2].plot(np.arange(1, 101), f.noisy_tomo_data, 'r.', label="noisy")
+    ax[2].plot(np.arange(1, 101), tomo_data, '.', label="true")
+    ax[2].plot(np.arange(1, 101), noisy_tomo_data, 'r.', label="noisy")
     ax[2].set_xlabel("LoS index", fontsize=12)
     ax[2].set_xlim([-2, 103])
     ax[2].set_xticks([1, 50, 100])
@@ -286,7 +286,7 @@ def plot_uq_data(uq_data, ground_truth, psi, levels=12,
     if plot_std:
         # plot ULA standard variation
         plot_profile(np.sqrt(uq_data["var"]), tcv_plot_clip=tcv_plot_clip, contour_image=psi, levels=levels,
-                     ax=ax[ax_counter], colorbar=True, contour_color="w", vmax=vmax_std, cmap=cmaps[ax_counter])
+                     ax=ax[ax_counter], colorbar=True, contour_color="w", vmin=0, vmax=vmax_std, cmap=cmaps[ax_counter])
         ax[ax_counter].set_title(r"$\sigma_{ULA}$")
         ax_counter += 1
     if plot_nb_stds:
