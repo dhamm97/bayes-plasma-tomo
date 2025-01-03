@@ -176,7 +176,7 @@ def anis_param_tuning(f, g, reg_param, with_pos_constraint=False,
                       clipping_mask=None, ground_truth=None,
                      anis_params=np.logspace(-4,0,5),
                      tuning_techniques='CV_single',
-                     cv_strategy="random",
+                     cv_strategy=["random"],
                      seed=0, plot=False, plot_ssim=False):
     """
 
@@ -197,6 +197,9 @@ def anis_param_tuning(f, g, reg_param, with_pos_constraint=False,
     true_val_alpha = g.diffusion_coefficient.alpha
 
     anis_param_tuning_data = {}
+
+    if not isinstance(cv_strategy, list):
+        cv_strategy = [cv_strategy]
 
     if ground_truth is not None:
         if ground_truth.shape == (240, 80):
@@ -220,37 +223,39 @@ def anis_param_tuning(f, g, reg_param, with_pos_constraint=False,
 
         if "CV_single" in tuning_techniques:
             print("Tuning anisotropy parameter: 1-fold cross validation (`CV_single`)\n")
-            # define cv_single data fidelity functional
-            f_cv = fct_def.define_loglikelihood_cv(f, cv_type="CV_single", cv_strategy=cv_strategy)
-            # compute stats for each anis_param provided
-            tomo_data_MSE, MSE, ssim_val = np.zeros(anis_params.size), np.zeros(anis_params.size), np.zeros(anis_params.size)
-            for i, anis_param in enumerate(anis_params):
-                g_ = _redefine_anis_param_logprior(g, anis_param)
-                im_MAP = bcomp.compute_MAP(f_cv, g_, reg_param, with_pos_constraint, clipping_mask, show_progress=False)
-                tomo_data_MSE[i] = (f(im_MAP) - f_cv(im_MAP)) * (2 * f.sigma_err ** 2) / f_cv.cv_test_idx.size
-                if ground_truth is not None:
-                    MSE[i] = np.mean((ground_truth - im_MAP) ** 2)
-                    ssim_val[i] = ssim(ground_truth, im_MAP, data_range=im_MAP.max() - im_MAP.min())
-            anis_param_tuning_data['CV_single'] = np.vstack((anis_params, tomo_data_MSE, MSE, ssim_val))
+            for cv_strategy_ in cv_strategy:
+                # define cv_single data fidelity functional
+                f_cv = fct_def.define_loglikelihood_cv(f, cv_type="CV_single", cv_strategy=cv_strategy_)
+                # compute stats for each anis_param provided
+                tomo_data_MSE, MSE, ssim_val = np.zeros(anis_params.size), np.zeros(anis_params.size), np.zeros(anis_params.size)
+                for i, anis_param in enumerate(anis_params):
+                    g_ = _redefine_anis_param_logprior(g, anis_param)
+                    im_MAP = bcomp.compute_MAP(f_cv, g_, reg_param, with_pos_constraint, clipping_mask, show_progress=False)
+                    tomo_data_MSE[i] = (f(im_MAP) - f_cv(im_MAP)) * (2 * f.sigma_err ** 2) / f_cv.cv_test_idx.size
+                    if ground_truth is not None:
+                        MSE[i] = np.mean((ground_truth - im_MAP) ** 2)
+                        ssim_val[i] = ssim(ground_truth, im_MAP, data_range=im_MAP.max() - im_MAP.min())
+                anis_param_tuning_data['CV_single'+'_'+cv_strategy_] = np.vstack((anis_params, tomo_data_MSE, MSE, ssim_val))
 
         if "CV_full" in tuning_techniques:
             print("Tuning regularization parameter: 5-fold cross validation (`CV_full`)\n")
-            # define cv_single data fidelity functional
-            f_cv = fct_def.define_loglikelihood_cv(f, cv_type="CV_full", cv_strategy=cv_strategy)
-            # compute stats for each anis_param provided
-            tomo_data_MSE, MSE, ssim_val = np.zeros(anis_params.size), np.zeros(anis_params.size), np.zeros(anis_params.size)
-            for cv_round in range(len(f_cv)):
-                for i, anis_param in enumerate(anis_params):
-                    g_ = _redefine_anis_param_logprior(g, anis_param)
-                    im_MAP = bcomp.compute_MAP(f_cv[cv_round], g_, reg_param, with_pos_constraint, clipping_mask, show_progress=False)
-                    tomo_data_MSE[i] += (f(im_MAP) - f_cv[cv_round](im_MAP)) * (2 * f.sigma_err ** 2) / f_cv[cv_round].cv_test_idx.size
-                    if ground_truth is not None:
-                        MSE[i] += np.mean((ground_truth - im_MAP) ** 2)
-                        ssim_val[i] += ssim(ground_truth, im_MAP, data_range=im_MAP.max() - im_MAP.min())
-            tomo_data_MSE /= len(f_cv)
-            MSE /= len(f_cv)
-            ssim_val /= len(f_cv)
-            anis_param_tuning_data['CV_full'] = np.vstack((anis_params, tomo_data_MSE, MSE, ssim_val))
+            for cv_strategy_ in cv_strategy:
+                # define cv_single data fidelity functional
+                f_cv = fct_def.define_loglikelihood_cv(f, cv_type="CV_full", cv_strategy=cv_strategy_)
+                # compute stats for each anis_param provided
+                tomo_data_MSE, MSE, ssim_val = np.zeros(anis_params.size), np.zeros(anis_params.size), np.zeros(anis_params.size)
+                for cv_round in range(len(f_cv)):
+                    for i, anis_param in enumerate(anis_params):
+                        g_ = _redefine_anis_param_logprior(g, anis_param)
+                        im_MAP = bcomp.compute_MAP(f_cv[cv_round], g_, reg_param, with_pos_constraint, clipping_mask, show_progress=False)
+                        tomo_data_MSE[i] += (f(im_MAP) - f_cv[cv_round](im_MAP)) * (2 * f.sigma_err ** 2) / f_cv[cv_round].cv_test_idx.size
+                        if ground_truth is not None:
+                            MSE[i] += np.mean((ground_truth - im_MAP) ** 2)
+                            ssim_val[i] += ssim(ground_truth, im_MAP, data_range=im_MAP.max() - im_MAP.min())
+                tomo_data_MSE /= len(f_cv)
+                MSE /= len(f_cv)
+                ssim_val /= len(f_cv)
+                anis_param_tuning_data['CV_full'+'_'+cv_strategy_] = np.vstack((anis_params, tomo_data_MSE, MSE, ssim_val))
 
         # modify g's alpha back to original value
         g = _redefine_anis_param_logprior(g, true_val_alpha)

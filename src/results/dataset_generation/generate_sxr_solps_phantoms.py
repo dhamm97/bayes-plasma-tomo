@@ -48,6 +48,8 @@ def generate_sxr_samples(psi_fct, dim_shape=(1, 120, 40), sampling=0.0125,
     source_loc = np.zeros((nsamples, 2), dtype=int)
     psis_at_source = np.zeros((nsamples))
     diffusive_steps = np.zeros(nsamples, dtype=int)
+    alpha_bounds = np.array([np.log(5e-4), np.log(5e-1)])
+    diffusive_steps_bounds = steps_nb_factor * np.array([int(2.5e2), int(2.5e3)])
     # generate samples
     for i in range(nsamples):
         # generate equilibrium, based on a stretched version of base version
@@ -89,26 +91,29 @@ def generate_sxr_samples(psi_fct, dim_shape=(1, 120, 40), sampling=0.0125,
         psis_at_source[i] = psi_at_source
 
         source_loc_bins = np.linspace(psi_lowerbound_source, psi_upperbound_source, 6, endpoint=True)
-        alpha_bounds = np.array([[np.log(1e-2), np.log(5e-1)],
-                                 [np.log(5e-3), np.log(5e-2)],
-                                 [np.log(5e-3), np.log(5e-2)],  # 1e-2
-                                 [np.log(1e-3), np.log(5e-2)],  # 5e-3
-                                 [np.log(5e-4), np.log(5e-2)]])  # 5e-3
-        diffusive_steps_bounds = steps_nb_factor * np.array([[int(5e3), int(1e4)],
-                                           [int(1e3), int(1e4)],
-                                           [int(5e2), int(5e3)],
-                                           [int(5e2), int(5e3)],
-                                           [int(5e2), int(5e3)]])
-        for bin in range(source_loc_bins.size - 1):
-            if psi_at_source >= source_loc_bins[bin] and psi_at_source < source_loc_bins[bin + 1]:
-                alpha_random_values[i] = np.exp(np.random.uniform(alpha_bounds[bin, 0],
-                                                                  alpha_bounds[bin, 1]))
-                if alpha_random_values[i] < 5e-3:
-                    lower_bound_diffusive_steps = steps_nb_factor * int(3e3)
-                else:
-                    lower_bound_diffusive_steps = diffusive_steps_bounds[bin, 0]
-                diffusive_steps[i] = np.random.randint(lower_bound_diffusive_steps,
-                                                       diffusive_steps_bounds[bin, 1])
+        # alpha_bounds = np.array([[np.log(1e-2), np.log(5e-1)],
+        #                          [np.log(5e-3), np.log(5e-2)],
+        #                          [np.log(5e-3), np.log(5e-2)],  # 1e-2
+        #                          [np.log(1e-3), np.log(5e-2)],  # 5e-3
+        #                          [np.log(5e-4), np.log(5e-2)]])  # 5e-3
+        # diffusive_steps_bounds = steps_nb_factor * np.array([[int(5e3), int(1e4)],
+        #                                    [int(1e3), int(1e4)],
+        #                                    [int(5e2), int(5e3)],
+        #                                    [int(5e2), int(5e3)],
+        #                                    [int(5e2), int(5e3)]])
+        # for bin in range(source_loc_bins.size - 1):
+        #     if psi_at_source >= source_loc_bins[bin] and psi_at_source < source_loc_bins[bin + 1]:
+        #         alpha_random_values[i] = np.exp(np.random.uniform(alpha_bounds[bin, 0],
+        #                                                           alpha_bounds[bin, 1]))
+        #         if alpha_random_values[i] < 5e-3:
+        #             lower_bound_diffusive_steps = steps_nb_factor * int(3e3)
+        #         else:
+        #             lower_bound_diffusive_steps = diffusive_steps_bounds[bin, 0]
+        #         diffusive_steps[i] = np.random.randint(lower_bound_diffusive_steps,
+        #                                                diffusive_steps_bounds[bin, 1])
+        # New definition of bounds
+        alpha_random_values[i] = np.exp(np.random.uniform(alpha_bounds[0], alpha_bounds[1]))
+        diffusive_steps[i] = np.random.randint(diffusive_steps_bounds[0], diffusive_steps_bounds[1])
 
                 # if we need to clip outside core, define core mask_core
         if clipping_outside_core:
@@ -232,36 +237,36 @@ if __name__ == '__main__':
     min_peak_value = 0.2
     peak_vals = min_peak_value + (1-min_peak_value) * np.random.rand(nsamples)
 
+    # _, _ = generate_sxr_samples(psi_eq, dim_shape=(1, 240, 80),
+    #                                                      reg_fct_type="coherence_enhancing",
+    #                                                      sigma_gd_st_factor=0, smooth_sigma_st_factor=2,
+    #                                                      sampling=0.00625, steps_nb_factor=2,
+    #                                                 nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_fine_discretization_new",
+    #                                                 clip_each_iter=True, clipping_outside_core=True,
+    #                                                 diff_method_struct_tens="fd", gpu=args.gpu,
+    #                                                 peak_values_gaussian_background=peak_vals)
+    #
+    # _, _ = generate_sxr_samples(psi_eq, dim_shape=(1, 120, 40),
+    #                                                      reg_fct_type="coherence_enhancing",
+    #                                                      sigma_gd_st_factor=0, smooth_sigma_st_factor=1,
+    #                                                      sampling=0.0125,
+    #                                                 nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_new",
+    #                                                 clip_each_iter=True, clipping_outside_core=True,
+    #                                                 diff_method_struct_tens="fd", gpu=args.gpu,
+    #                                                 peak_values_gaussian_background=peak_vals)
+
     _, _ = generate_sxr_samples(psi_eq, dim_shape=(1, 240, 80),
-                                                         reg_fct_type="coherence_enhancing",
-                                                         sigma_gd_st_factor=0, smooth_sigma_st_factor=2,
-                                                         sampling=0.00625, steps_nb_factor=2,
-                                                    nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_fine_discretization_new",
+                                                         reg_fct_type="anisotropic",
+                                                         sampling=0.00625, steps_nb_factor=4,
+                                                    nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_fine_anisotropic_new_bounds",
                                                     clip_each_iter=True, clipping_outside_core=True,
                                                     diff_method_struct_tens="fd", gpu=args.gpu,
                                                     peak_values_gaussian_background=peak_vals)
 
     _, _ = generate_sxr_samples(psi_eq, dim_shape=(1, 120, 40),
-                                                         reg_fct_type="coherence_enhancing",
-                                                         sigma_gd_st_factor=0, smooth_sigma_st_factor=1,
-                                                         sampling=0.0125,
-                                                    nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_new",
-                                                    clip_each_iter=True, clipping_outside_core=True,
-                                                    diff_method_struct_tens="fd", gpu=args.gpu,
-                                                    peak_values_gaussian_background=peak_vals)
-
-    _, _ = generate_sxr_samples(psi_eq, dim_shape=(1, 240, 80),
-                                                         reg_fct_type="anisotropic",
-                                                         sampling=0.00625, steps_nb_factor=2,
-                                                    nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_fine_discretization_anisotropic_new",
-                                                    clip_each_iter=True, clipping_outside_core=True,
-                                                    diff_method_struct_tens="fd", gpu=args.gpu,
-                                                    peak_values_gaussian_background=peak_vals)
-
-    _, _ = generate_sxr_samples(psi_eq, dim_shape=(1, 120, 40),
                                                          reg_fct_type="anisotropic",
                                                          sampling=0.0125,
-                                                    nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_anisotropic_new",
+                                                    nsamples=nsamples, seed=0, save=True, save_dir="sxr_samples_anisotropic_new_bounds",
                                                     clip_each_iter=True, clipping_outside_core=True,
                                                     diff_method_struct_tens="fd", gpu=args.gpu,
                                                     peak_values_gaussian_background=peak_vals)
