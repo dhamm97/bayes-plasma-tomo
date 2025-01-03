@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse as sp
 import skimage.transform as skimt
 import os
+import warnings
 
 from pyxu.info import ptype as pxt
 import pyxu.operator as pyxop
@@ -93,7 +94,11 @@ def _DataFidelityFunctional(dim_shape: pxt.NDArrayShape, noisy_tomo_data: pxt.ND
         normalized_geometry_matrix = geometry_matrix / np.hstack([sigma_err_vec.reshape(-1,1)]*geometry_matrix.shape[1])
         normalized_geometry_matrix = sp.csr_matrix(normalized_geometry_matrix)
         normalized_forward_model_linop = _ExplicitLinOpSparseMatrix(dim_shape=dim_shape, mat=normalized_geometry_matrix)
-        normalized_forward_model_linop.lipschitz = sp.linalg.norm(normalized_geometry_matrix, 2)
+        with warnings.catch_warnings():
+            # compute norm with scipy.sparse library: suppress triggered warning,
+            # computation is accurate even though scipy.sparse's svd default tolerance is not reached
+            warnings.simplefilter("ignore")
+            normalized_forward_model_linop.lipschitz = sp.linalg.norm(normalized_geometry_matrix, 2)
         op = 1 / 2 * pyxop.SquaredL2Norm(dim_shape=(noisy_tomo_data.size,)).argshift(-normalized_noisy_tomo_data.flatten()) * normalized_forward_model_linop
         forward_model_linop = normalized_forward_model_linop
     # define data-fidelity functional
