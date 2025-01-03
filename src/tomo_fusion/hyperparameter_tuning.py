@@ -130,9 +130,10 @@ def reg_param_tuning(f, g, with_pos_constraint=False,
         for i, reg_param in enumerate(reg_params):
             im_MAP = bcomp.compute_MAP(f_cv, g, reg_param, with_pos_constraint, clipping_mask, show_progress=False)
             #tomo_data_MSE[i] = (f(im_MAP) - f_cv(im_MAP)) * (2 * f.sigma_err ** 2) / f_cv.cv_test_idx.size
-            tomo_data_MSE[i] = np.mean(
-                (f.forward_model_linop(im_MAP)[f_cv.cv_test_idx] - f.noisy_tomo_data[f_cv.cv_test_idx])**2
-            )
+            #tomo_data_MSE[i] = np.mean(
+            #    (f.forward_model_linop(im_MAP)[f_cv.cv_test_idx] - f.noisy_tomo_data[f_cv.cv_test_idx])**2
+            #)
+            tomo_data_MSE[i] += _compute_tomo_data_mse(f, im_MAP, indices=f_cv.cv_test_idx)
             if ground_truth is not None:
                 MSE[i] = np.mean((ground_truth - im_MAP) ** 2)
                 ssim_val[i] = ssim(ground_truth, im_MAP, data_range=im_MAP.max() - im_MAP.min())
@@ -148,9 +149,10 @@ def reg_param_tuning(f, g, with_pos_constraint=False,
             for i, reg_param in enumerate(reg_params):
                 im_MAP = bcomp.compute_MAP(f_cv[cv_round], g, reg_param, with_pos_constraint, clipping_mask, show_progress=False)
                 #tomo_data_MSE[i] += (f(im_MAP) - f_cv[cv_round](im_MAP)) * (2 * f.sigma_err ** 2) / f_cv[cv_round].cv_test_idx.size
-                tomo_data_MSE[i] += np.mean(
-                    (f.forward_model_linop(im_MAP)[f_cv[cv_round].cv_test_idx] - f.noisy_tomo_data[f_cv[cv_round].cv_test_idx]) ** 2
-                )
+                #tomo_data_MSE[i] += np.mean(
+                #    (f.forward_model_linop(im_MAP)[f_cv[cv_round].cv_test_idx] - f.noisy_tomo_data[f_cv[cv_round].cv_test_idx]) ** 2
+                #)
+                tomo_data_MSE[i] += _compute_tomo_data_mse(f, im_MAP, indices=f_cv[cv_round].cv_test_idx)
                 if ground_truth is not None:
                     MSE[i] += np.mean((ground_truth - im_MAP) ** 2)
                     ssim_val[i] += ssim(ground_truth, im_MAP, data_range=im_MAP.max() - im_MAP.min())
@@ -240,7 +242,8 @@ def anis_param_tuning(f, g, reg_param, with_pos_constraint=False,
                 g_ = _redefine_anis_param_logprior(g, anis_param)
                 im_MAP = bcomp.compute_MAP(f, g_, reg_param, with_pos_constraint, clipping_mask, show_progress=False)
                 # tomo_data_MSE[i] = f(im_MAP) * (2 * f.sigma_err**2) / f.dim_size
-                tomo_data_MSE[i] = np.mean((f.forward_model_linop(im_MAP) - f.noisy_tomo_data) ** 2)
+                #tomo_data_MSE[i] = np.mean((f.forward_model_linop(im_MAP) - f.noisy_tomo_data) ** 2)
+                tomo_data_MSE[i] = _compute_tomo_data_mse(f, im_MAP)
                 MSE[i] = np.mean((ground_truth - im_MAP) ** 2)
                 ssim_val[i] = ssim(ground_truth, im_MAP, data_range=im_MAP.max() - im_MAP.min())
             anis_param_tuning_data['GT'] = np.vstack((anis_params, tomo_data_MSE, MSE, ssim_val))
@@ -256,9 +259,10 @@ def anis_param_tuning(f, g, reg_param, with_pos_constraint=False,
                     g_ = _redefine_anis_param_logprior(g, anis_param)
                     im_MAP = bcomp.compute_MAP(f_cv, g_, reg_param, with_pos_constraint, clipping_mask, show_progress=False)
                     # tomo_data_MSE[i] = (f(im_MAP) - f_cv(im_MAP)) * (2 * f.sigma_err ** 2) / f_cv.cv_test_idx.size
-                    tomo_data_MSE[i] = np.mean(
-                        (f.forward_model_linop(im_MAP)[f_cv.cv_test_idx] - f.noisy_tomo_data[f_cv.cv_test_idx]) ** 2
-                    )
+                    #tomo_data_MSE[i] = np.mean(
+                    #    (f.forward_model_linop(im_MAP)[f_cv.cv_test_idx] - f.noisy_tomo_data[f_cv.cv_test_idx]) ** 2
+                    #)
+                    tomo_data_MSE[i] += _compute_tomo_data_mse(f, im_MAP, indices=f_cv.cv_test_idx)
                     if ground_truth is not None:
                         MSE[i] = np.mean((ground_truth - im_MAP) ** 2)
                         ssim_val[i] = ssim(ground_truth, im_MAP, data_range=im_MAP.max() - im_MAP.min())
