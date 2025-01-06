@@ -64,6 +64,93 @@ def run_uq_study(sigma_err, reg_param, phantom_indices, phantom_dir, saving_dir)
     return
 
 
+def postprocess_uq_data(uq_data_dir):
+    # Load phantom data
+    psis = np.load('../dataset_generation/sxr_samples/psis.npy')
+    sxr_samples = np.load('../dataset_generation/sxr_samples/sxr_samples_with_background.npy')
+    trim_val = np.load('../dataset_generation/sxr_samples/trimming_values.npy')
+
+    # pixel value stats
+    pixels_within_quantiles = np.zeros((900, 5))
+    pixels_within_n_stds = np.zeros((900, 3))
+    mse_map, mse_mean = np.zeros(900), np.zeros(900)
+    mape_map, mape_mean = np.zeros(900), np.zeros(900)
+    # peak location stats
+    true_peak_loc = np.zeros((900, 2))
+    peak_within_n_stds = np.zeros((900, 3))
+    peak_distance_from_mean = np.zeros((900, 2))
+    # prad stats
+    true_prad_core = np.zeros(900)
+    prad_within_n_stds = np.zeros((900, 3))
+    prad_std_values = np.zeros(900)
+    prad_rel_error_map, prad_rel_error_mean = np.zeros(900), np.zeros(900)
+    prad_within_quantiles = np.zeros((900, 5))
+
+    for idx in range(900):
+        recon_shape = (120, 40)
+
+        uq_data_idx = np.load(uq_data_dir + '/uq_data_' + str(idx) + '.npy', allow_pickle=True).item()
+        quantile_marks = uq_data_idx['quantile_marks']
+
+        ground_truth = sxr_samples[idx, :, :].squeeze()
+        psi = psis[idx, :, :]
+
+        mask_core = tomo_helps.define_core_mask(psi=psi, dim_shape=recon_shape, trim_values_x=trim_val[idx, :])
+
+        # compute pixels withing quantile bounds stats
+        ground_truth_downsampled = skimt.resize(ground_truth, uq_data_idx["im_MAP"].shape, anti_aliasing=False,
+                                                mode='edge')  # * mask_core
+        core_pixels_number = ground_truth_downsampled[ground_truth_downsampled > 1e-3].size
+        for j in range(5):
+            # qunatile-related
+            idxs = np.where((ground_truth_downsampled >= uq_data_idx["empirical_quantiles"][j, :, :]) & (
+                        ground_truth_downsampled <= uq_data_idx["empirical_quantiles"][-(j + 1), :, :]))
+            frac_pixels_within_quantiles_core = (idxs[0].size - (4800 - np.sum(mask_core))) / np.sum(mask_core)
+            pixels_within_quantiles[idx, j] = frac_pixels_within_quantiles_core
+        for j, nb_stds in enumerate(np.arange(1, 4)):
+            # standard deviation-related
+            pixels_within_n_stds_idxs = np.where((ground_truth_downsampled >= (uq_data_idx["mean"] - nb_stds * np.sqrt(uq_data_idx["var"]))) &
+                                    (ground_truth_downsampled <= (uq_data_idx["mean"] + nb_stds * np.sqrt(uq_data_idx["var"]))))
+            frac_pixels_within_n_stds_core = (pixels_within_n_stds_idxs[0].size - (4800 - core_pixels_number)) / core_pixels_number
+            # frac_pixels_within_one_std_core = (idxs_one_std[0].size - (4800-np.sum(mask_core))) / np.sum(mask_core)
+            pixels_within_n_stds[idx, j] = frac_pixels_within_n_stds_core
+        mse_map[idx] = np.mean((ground_truth_downsampled - uq_data_idx["im_MAP"]) ** 2)
+        mse_mean[idx] = np.mean((ground_truth_downsampled - uq_data_idx["mean"]) ** 2)
+        mape_map[idx] = np.mean(np.abs((ground_truth_downsampled[mask_core] - uq_data_idx["im_MAP"][mask_core]) / ground_truth_downsampled[mask_core]))
+        mape_mean[idx] = np.mean(np.abs((ground_truth_downsampled[mask_core] - uq_data_idx["mean"][mask_core])/ground_truth_downsampled[mask_core]))
+
+        # compute peak location stats
+        true_peak_loc[idx, :] = np.array(np.where(ground_truth == ground_truth.max())).reshape(2) / 2
+        peak_distance_from_mean[idx, :] = (uq_data_idx["mean_peak_loc"] - true_peak_loc[idx, :]) * uq_data_idx["sampling"][0]
+        for j, nb_stds in enumerate(np.arange(1, 4)):
+            peak_within_n_stds[idx, j] = (
+                    (np.abs(uq_data_idx["mean_peak_loc"][0] - true_peak_loc[idx, 0]) < nb_stds * np.sqrt(uq_data_idx["var_peak_loc"][0]))
+                    and
+                    (np.abs(uq_data_idx["mean_peak_loc"][1] - true_peak_loc[idx, 1]) < nb_stds * np.sqrt(uq_data_idx["var_peak_loc"][1])))
+
+        # compute prad stats
+        true_prad_core[idx] = tomo_helps.compute_radiated_power(ground_truth_downsampled, mask_core, uq_data_idx["sampling"])
+        for j, nb_stds in enumerate(np.arange(1, 4)):
+            prad_within_n_stds[idx, j] = np.abs(uq_data_idx["mean_prad_core"] - true_prad_core[idx]) < nb_stds * np.sqrt(uq_data_idx["var_prad_core"])
+            #prad_within_n_stds[idx, j] = (uq_data_idx["mean_prad_core"] - true_prad_core) / np.sqrt(uq_data_idx["var_prad_core"])
+        prad_std_values[idx] = np.sqrt(uq_data_idx["var_prad_core"])
+        prad_rel_error_mean[idx] = (uq_data_idx["mean_prad_core"] - true_prad_core[idx]) / true_prad_core[idx]
+        prad_rel_error_map[idx] = (uq_data_idx["prad_map_core"] - true_prad_core[idx]) / true_prad_core[idx]
+        for j in range(5):
+            prad_within_quantiles[idx, j] = (
+                    (np.quantile(uq_data_idx["prads_core"], quantile_marks[-(j + 1)]) > true_prad_core[idx])
+                    and
+                    (np.quantile(uq_data_idx["prads_core"], quantile_marks[j]) < true_prad_core[idx])
+            )
+        postprocessed_uq_data = {"pixels_within_quantiles": pixels_within_quantiles, "pixels_within_n_stds": pixels_within_n_stds, "mse_map": mse_map,
+                              "mse_mean": mse_mean, "mape_map": mape_map, "mape_mean": mape_mean,
+                              "true_peak_loc": true_peak_loc, "peak_within_n_stds": peak_within_n_stds, "peak_distance_from_mean": peak_distance_from_mean,
+                              "true_prad_core": true_prad_core, "prad_within_n_stds": prad_within_n_stds, "prad_std_values": prad_std_values,
+                              "prad_rel_error_map": prad_rel_error_map, "prad_rel_error_mean": prad_rel_error_mean, "prad_within_quantiles": prad_within_quantiles,
+                              "quantile_marks": quantile_marks}
+        np.save(uq_data_dir + "/postprocessed_data.npy", postprocessed_uq_data)
+
+
 if __name__ == '__main__':
     # run reg_param tuning routine on training phantoms
 

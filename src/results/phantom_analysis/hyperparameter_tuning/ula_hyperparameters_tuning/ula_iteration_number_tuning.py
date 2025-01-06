@@ -150,16 +150,22 @@ if __name__ == '__main__':
     # define directory where phantoms are stored
     phantom_dir = '../../../dataset_generation/sxr_samples_fine_anisotropic_new_bounds'
 
+    # # reg_param_tuning directory
+    # reg_param_tuning_dir = '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/'
+    # sigma_err = np.load(
+    #     '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/sigma_err.npy')
+    # reg_param_mean = np.load(
+    #     '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_mean.npy')
+    # reg_param_median = np.load(
+    #     '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_median.npy')
+    # # saving directory
+    # saving_dir = 'hyperparam_tuning/ula_iterations_number_tuning/'
     # reg_param_tuning directory
-    reg_param_tuning_dir = '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/'
-    sigma_err = np.load(
-        '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/sigma_err.npy')
-    reg_param_mean = np.load(
-        '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_mean.npy')
-    reg_param_median = np.load(
-        '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_median.npy')
+    reg_param_tuning_dir = '../prior_hyperparameters_tuning/tuning_data/reg_param_tuning_sigma005005/'
+    sigma_err = np.load(reg_param_tuning_dir + 'sigma_err.npy')
+    reg_param_median = np.load(reg_param_tuning_dir + 'reg_param_median.npy')
     # saving directory
-    saving_dir = 'hyperparam_tuning/ula_iterations_number_tuning/'
+    saving_dir = 'ula_iterations_number_tuning_sigma005005/'
     if not os.path.isdir(saving_dir):
         os.mkdir(saving_dir)
     #train_indices = np.arange(900, 910)
