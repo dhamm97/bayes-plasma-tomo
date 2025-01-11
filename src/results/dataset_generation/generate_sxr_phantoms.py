@@ -84,7 +84,7 @@ def generate_sxr_samples(psi_fct, dim_shape=(1, 120, 40), sampling=0.0125,
         for j in range(nsources):
             x0[mask_locs[0][sources_idx[j]]:mask_locs[0][sources_idx[j]] + 2,
             mask_locs[1][sources_idx[j]]:mask_locs[1][sources_idx[j]] + 2] = 1
-        source_loc[i, :] = np.array(mask_locs[0][sources_idx[0]], mask_locs[1][sources_idx[0]])
+        source_loc[i, :] = np.array([mask_locs[0][sources_idx[0]], mask_locs[1][sources_idx[0]]])
 
         # Assume one source, assign different alpha values depending on source's position
         psi_at_source = psi[mask_locs[0][sources_idx[0]], mask_locs[1][sources_idx[0]]]

@@ -137,7 +137,7 @@ if __name__ == '__main__':
     # run reg_param tuning routine on training phantoms
 
     # define directory where phantoms are stored
-    phantom_dir = '../../../dataset_generation/sxr_samples_fine_anisotropic_new_bounds'
+    phantom_dir = '../../../dataset_generation/sxr_samples'
 
     # # Noise level 5%
     # sigma_level = 0.05
@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
     # Noise level 5% plus 5% signal-dependent
     sigma_level = [0.05, 0.05]
-    saving_dir = '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005005/'
+    saving_dir = 'tuning_data/reg_param_tuning_fine_anisotropic_newbounds_sigma005005new/'
 
     if not os.path.isdir(saving_dir):
         os.mkdir(saving_dir)

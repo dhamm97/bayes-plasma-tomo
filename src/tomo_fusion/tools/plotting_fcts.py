@@ -124,7 +124,7 @@ def plot_profile(image,
                  tcv_plot_clip=False,
                  contour_image=None, levels=15,
                  ax=None, colorbar=False,
-                 interpolation=None, vmin=None, vmax=None, cmap="viridis", contour_color="w"):
+                 interpolation=None, vmin=None, vmax=None, cmap="viridis", contour_color="w", aspect=None):
     if tcv_plot_clip:
         # define TCV patch for plotting
         tcv_shape_coords = np.load(dirname + "/../forward_model/tcv_shape_coords.npy")
@@ -145,14 +145,14 @@ def plot_profile(image,
                         linewidths=0.2)
             lcms_level = np.where(c.levels == 0)[0][0]
             c.collections[lcms_level].set_linewidth(0.75)
-        p = plt.imshow(image, interpolation=interpolation, vmin=vmin, vmax=vmax, cmap=cmap)
+        p = plt.imshow(image, interpolation=interpolation, vmin=vmin, vmax=vmax, cmap=cmap, aspect=aspect)
         if tcv_plot_clip:
             plt.gca().add_patch(patch)
             p.set_clip_path(patch)
             if contour_image is not None:
                 c.set_clip_path(patch)
         else:
-            plt.imshow(image, interpolation=interpolation, vmin=vmin, vmax=vmax)
+            plt.imshow(image, interpolation=interpolation, vmin=vmin, vmax=vmax, aspect=aspect)
         plt.axis('off')
         if colorbar:
             plt.colorbar()
@@ -163,7 +163,7 @@ def plot_profile(image,
                        linewidths=0.2)
             lcms_level = np.where(c.levels == 0)[0][0]
             c.collections[lcms_level].set_linewidth(0.75)
-        p = ax.imshow(image, interpolation=interpolation, vmin=vmin, vmax=vmax, cmap=cmap)
+        p = ax.imshow(image, interpolation=interpolation, vmin=vmin, vmax=vmax, cmap=cmap, aspect=aspect)
         if tcv_plot_clip:
             ax.add_patch(patch)
             p.set_clip_path(patch)
