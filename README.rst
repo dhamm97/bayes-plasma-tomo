@@ -22,7 +22,7 @@ even without needing to actually re-run them. 🔎
 
 The pipelines proposed in this paper rely on the open-source computational imaging framework
 `Pyxu <https://github.com/pyxu-org/pyxu>`_ and its plugin `pyxu-diffops <https://github.com/dhamm97/pyxu-diffops>`_ ,
-both (co-)developed by us.
+both (co-)developed by us: check them out!
 
 
 Installation: let's get started! 🚀
