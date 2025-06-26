@@ -63,7 +63,7 @@ Once you have generated the phantoms, we are ready to replicate the paper result
 * In ``src/results/phantom_analysis/uq_study_results``, the repo only contains the postprocessed aggregate results. If you want to fully reproduce
   the analysis, you can run the python script ``uq_study.py``. Warning ⚠️ : running this script takes a long time. If you have access to a workstation
   featuring multiple cores, run the ``.sh`` version of the script, splitting the computations among (in our case) 10 different cores, which will
-  reduce the computation time to a couple hours.
+  reduce the computation time to a few hours.
 
 * In ``src/results/sparse_tomography_limits`` you will find the Jupyter Notebook allowing to reproduce the results from Section 5.3.
 
