@@ -112,7 +112,6 @@ def postprocess_uq_data(uq_data_dir):
             pixels_within_n_stds_idxs = np.where((ground_truth_downsampled >= (uq_data_idx["mean"] - nb_stds * np.sqrt(uq_data_idx["var"]))) &
                                     (ground_truth_downsampled <= (uq_data_idx["mean"] + nb_stds * np.sqrt(uq_data_idx["var"]))))
             frac_pixels_within_n_stds_core = (pixels_within_n_stds_idxs[0].size - (4800 - core_pixels_number)) / core_pixels_number
-            # frac_pixels_within_one_std_core = (idxs_one_std[0].size - (4800-np.sum(mask_core))) / np.sum(mask_core)
             pixels_within_n_stds[idx, j] = frac_pixels_within_n_stds_core
         mse_map[idx] = np.mean((ground_truth_downsampled - uq_data_idx["im_MAP"]) ** 2)
         mse_mean[idx] = np.mean((ground_truth_downsampled - uq_data_idx["mean"]) ** 2)
@@ -132,7 +131,6 @@ def postprocess_uq_data(uq_data_dir):
         true_prad_core[idx] = tomo_helps.compute_radiated_power(ground_truth_downsampled, mask_core, uq_data_idx["sampling"])
         for j, nb_stds in enumerate(np.arange(1, 4)):
             prad_within_n_stds[idx, j] = np.abs(uq_data_idx["mean_prad_core"] - true_prad_core[idx]) < nb_stds * np.sqrt(uq_data_idx["var_prad_core"])
-            #prad_within_n_stds[idx, j] = (uq_data_idx["mean_prad_core"] - true_prad_core) / np.sqrt(uq_data_idx["var_prad_core"])
         prad_std_values[idx] = np.sqrt(uq_data_idx["var_prad_core"])
         prad_rel_error_mean[idx] = (uq_data_idx["mean_prad_core"] - true_prad_core[idx]) / true_prad_core[idx]
         prad_rel_error_map[idx] = (uq_data_idx["prad_map_core"] - true_prad_core[idx]) / true_prad_core[idx]
@@ -152,7 +150,6 @@ def postprocess_uq_data(uq_data_dir):
 
 
 if __name__ == '__main__':
-    # run reg_param tuning routine on training phantoms
 
     argv = sys.argv
     if len(argv) == 1:
@@ -164,37 +161,35 @@ if __name__ == '__main__':
         raise ValueError("Number of passed arguments must be either 1 or 3")
 
     # define directory where phantoms are stored
-    phantom_dir = '../../dataset_generation/sxr_samples_fine_anisotropic_new_bounds'
+    phantom_dir = '../../dataset_generation/sxr_samples'
 
-    # # Noise level 5%
-    # sigma_level = 0.05
-    # saving_dir_sigma005 = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_sigma005/'
-    # reg_param_tuning_train_phantoms(sigma_level, phantom_dir, saving_dir_sigma005)
-
-    # # Noise level 10%
-    # sigma_level = 0.1
-    # saving_dir_sigma01 = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_sigma01/'
-    # reg_param_tuning_train_phantoms(sigma_level, phantom_dir, saving_dir_sigma01)
-
-    # reg_param_tuning directory
-    # reg_param_tuning_dir = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/'
-    # sigma_err = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/sigma_err.npy')
-    # reg_param_median = np.load('hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_median.npy')
-    # # saving directory
-    # saving_dir = 'uq_study_results/sigma005/'
-    # if not os.path.isdir(saving_dir):
-    #     os.mkdir(saving_dir)
-    # run_uq_study(sigma_err=sigma_err, reg_param=reg_param_median,
-    #              phantom_indices=phantom_indices,
-    #              phantom_dir=phantom_dir, saving_dir=saving_dir)
-
-    reg_param_tuning_dir = '../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma01/'
-    sigma_err = np.load(
-        '../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma01/sigma_err.npy')
-    reg_param_median = np.load(
-        '../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma01/reg_param_median.npy')
+    # Noise model N1, noise level 5%
+    sigma_err = np.load('../hyperparameter_tuning/prior_hyperparameters_tuning/tuning_data/reg_param_tuning_sigma005/sigma_err.npy')
+    reg_param_median = 0.1
     # saving directory
-    saving_dir = 'uq_study_results/sigma01/'
+    saving_dir = 'sigma005/'
+    if not os.path.isdir(saving_dir):
+        os.mkdir(saving_dir)
+    run_uq_study(sigma_err=sigma_err, reg_param=reg_param_median,
+                 phantom_indices=phantom_indices,
+                 phantom_dir=phantom_dir, saving_dir=saving_dir)
+
+    # Noise model N2, noise level 10%
+    sigma_err = np.load('../hyperparameter_tuning/prior_hyperparameters_tuning/tuning_data/reg_param_tuning_sigma01/sigma_err.npy')
+    reg_param_median = 0.1
+    # saving directory
+    saving_dir = 'sigma01/'
+    if not os.path.isdir(saving_dir):
+        os.mkdir(saving_dir)
+    run_uq_study(sigma_err=sigma_err, reg_param=reg_param_median,
+                 phantom_indices=phantom_indices,
+                 phantom_dir=phantom_dir, saving_dir=saving_dir)
+
+    # Noise model N3, noise level 5% + 5% signal-dependent
+    sigma_err = np.load('../hyperparameter_tuning/prior_hyperparameters_tuning/tuning_data/reg_param_tuning_sigma005005/sigma_err.npy')
+    reg_param_median = 0.1
+    # saving directory
+    saving_dir = 'sigma005005/'
     if not os.path.isdir(saving_dir):
         os.mkdir(saving_dir)
     run_uq_study(sigma_err=sigma_err, reg_param=reg_param_median,
