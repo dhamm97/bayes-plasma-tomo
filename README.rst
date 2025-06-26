@@ -88,3 +88,8 @@ Issues
 ------
 
 Hopefully the provided instructions will be enough, but if you encounter any problems feel free to contact us!
+
+Cite us
+------
+
+If any of this was useful for your own research, you can cite our `paper <https://arxiv.org/abs/2506.20232>`_ !
