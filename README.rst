@@ -57,20 +57,20 @@ Once you have generated the phantoms, we are ready to replicate the paper result
 
 * The notebook ``dataset_generation_plots.ipynb`` in folder ``src/results/dataset_generation`` shows the generation of the plots included in Section 5.1 of the paper.
 
-* The notebook ``phantom_analysis_results.ipynb`` in folder ``src/results/phantom_anlysis`` shows the generation of the plots included in Section 5.2 of the paper.
+* The notebook ``phantom_analysis_results.ipynb`` in folder ``src/results/phantom_anlaysis`` shows the generation of the plots included in Section 5.2 of the paper.
   If you want to reproduce them, see the next bullet point.
 
-* In ``src/results/phantom_anlysis/uq_study_results``, the repo only contains the postprocessed aggregate results. If you want to fully reproduce
+* In ``src/results/phantom_analysis/uq_study_results``, the repo only contains the postprocessed aggregate results. If you want to fully reproduce
   the analysis, you can run the python script ``uq_study.py``. Warning ⚠️ : running this script takes a long time. If you have access to a workstation
   featuring multiple cores, run the ``.sh`` version of the script, splitting the computations among (in our case) 10 different cores, which will
   reduce the computation time to a couple hours.
 
 * In ``src/results/sparse_tomography_limits`` you will find the Jupyter Notebook allowing to reproduce the results from Section 5.3.
 
-* In ``src/results/phantom_anlysis/hyperparameter_tuning/prior_hyperparameters_tuning`` you will find the scripts necessary to reproduce the
+* In ``src/results/phantom_analysis/hyperparameter_tuning/prior_hyperparameters_tuning`` you will find the scripts necessary to reproduce the
   results already findable in its subfolder ``tuning_data``. The included Jupyter Notebook reports the results included in Appendix C of the paper.
 
-* In ``src/results/phantom_anlysis/hyperparameter_tuning/ula_hyperparameters_tuning`` you will find the script ``ula_iteration_number_tuning.py``,
+* In ``src/results/phantom_analysis/hyperparameter_tuning/ula_hyperparameters_tuning`` you will find the script ``ula_iteration_number_tuning.py``,
   which can be used to generate the data for Figure 8 in Appendix C. Warning ⚠️ : this script too takes a pretty long time, since it computes
   :math:`10^7` MCMC iterations for 100 different phantoms. If you have access to a workstation featuring multiple cores, run the ``.sh`` version of the script.
   Probably easier to simply check the provided Jupyter Notebook in this case.
