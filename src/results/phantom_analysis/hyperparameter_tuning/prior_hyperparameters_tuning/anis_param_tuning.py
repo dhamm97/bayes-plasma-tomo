@@ -148,32 +148,43 @@ def anis_param_tuning_train_phantoms(sigma_err, phantom_dir, saving_dir, reg_par
 
 
 if __name__ == '__main__':
-    # run reg_param tuning routine on training phantoms
 
     # define directory where phantoms are stored
-    phantom_dir = '../../../dataset_generation/sxr_samples_fine_anisotropic_new_bounds'
+    phantom_dir = '../../../dataset_generation/sxr_samples'
 
-    # # Noise level 5%
-    # sigma_level = 0.05
-    # saving_dir_sigma005 = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_sigma005/'
-    # reg_param_tuning_train_phantoms(sigma_level, phantom_dir, saving_dir_sigma005)
 
-    # # Noise level 10%
-    # sigma_level = 0.1
-    # saving_dir_sigma01 = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_sigma01/'
-    # reg_param_tuning_train_phantoms(sigma_level, phantom_dir, saving_dir_sigma01)
-
-    # reg_param_tuning directory
-    reg_param_tuning_dir = '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/'
+    # Noise model N1, noise level 5%
     sigma_err = np.load(
-        '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/sigma_err.npy')
-    reg_param_mean = np.load(
-        '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_mean.npy')
-    reg_param_median = np.load(
-        '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_median.npy')
-    # saving directory
-    saving_dir = '../../../dataset_generation/hyperparam_tuning/anis_param_tuning_fine_anisotropic_newbounds_sigma005/'
+        '../hyperparameter_tuning/prior_hyperparameters_tuning/tuning_data/reg_param_tuning_sigma005/sigma_err.npy')
+    saving_dir = 'tuning_data/anis_param_tuning_sigma005/'
+    reg_param_median = 0.1
     if not os.path.isdir(saving_dir):
         os.mkdir(saving_dir)
+    # analyze training phantoms
     anis_param_tuning_train_phantoms(sigma_err=sigma_err, phantom_dir=phantom_dir,
-                                     saving_dir=saving_dir, reg_param=reg_param_median, cv_strategy=["random", "by_camera"])
+                                     saving_dir=saving_dir, reg_param=reg_param_median,
+                                     cv_strategy=["random", "by_camera"])
+
+    # Noise model N2, noise level 10%
+    sigma_err = np.load(
+        '../hyperparameter_tuning/prior_hyperparameters_tuning/tuning_data/reg_param_tuning_sigma01/sigma_err.npy')
+    saving_dir = 'tuning_data/anis_param_tuning_sigma01/'
+    reg_param_median = 0.1
+    if not os.path.isdir(saving_dir):
+        os.mkdir(saving_dir)
+    # analyze training phantoms
+    anis_param_tuning_train_phantoms(sigma_err=sigma_err, phantom_dir=phantom_dir,
+                                     saving_dir=saving_dir, reg_param=reg_param_median,
+                                     cv_strategy=["random", "by_camera"])
+
+    # Noise model N3, noise level 5% + 5% signal-dependent
+    sigma_err = np.load(
+        '../hyperparameter_tuning/prior_hyperparameters_tuning/tuning_data/reg_param_tuning_sigma005005/sigma_err.npy')
+    saving_dir = 'tuning_data/anis_param_tuning_sigma005005/'
+    reg_param_median = 0.1
+    if not os.path.isdir(saving_dir):
+        os.mkdir(saving_dir)
+    # analyze training phantoms
+    anis_param_tuning_train_phantoms(sigma_err=sigma_err, phantom_dir=phantom_dir,
+                                     saving_dir=saving_dir, reg_param=reg_param_median,
+                                     cv_strategy=["random", "by_camera"])

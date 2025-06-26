@@ -139,18 +139,25 @@ if __name__ == '__main__':
     # define directory where phantoms are stored
     phantom_dir = '../../../dataset_generation/sxr_samples'
 
-    # # Noise level 5%
-    # sigma_level = 0.05
-    # saving_dir = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/'
+    # Noise model N1, noise level 5%
+    sigma_level = 0.05
+    saving_dir = 'tuning_data/reg_param_tuning_sigma005/'
+    if not os.path.isdir(saving_dir):
+        os.mkdir(saving_dir)
+    # analyze training phantoms
+    reg_param_tuning_train_phantoms(sigma_level, phantom_dir, saving_dir)
 
-    # Noise level 10%
-    # sigma_level = 0.1
-    # saving_dir = 'hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma01/'
+    # Noise model N2, noise level 10%
+    sigma_level = 0.1
+    saving_dir = 'tuning_data/reg_param_tuning_sigma01/'
+    if not os.path.isdir(saving_dir):
+        os.mkdir(saving_dir)
+    # analyze training phantoms
+    reg_param_tuning_train_phantoms(sigma_level, phantom_dir, saving_dir)
 
-    # Noise level 5% plus 5% signal-dependent
+    # Noise model N3, noise level 5% + 5% signal-dependent
     sigma_level = [0.05, 0.05]
-    saving_dir = 'tuning_data/reg_param_tuning_fine_anisotropic_newbounds_sigma005005new/'
-
+    saving_dir = 'tuning_data/reg_param_tuning_sigma005005/'
     if not os.path.isdir(saving_dir):
         os.mkdir(saving_dir)
     # analyze training phantoms
