@@ -16,34 +16,6 @@ import src.tomo_fusion.functionals_definition as fct_def
 dirname = os.path.dirname(__file__)
 
 
-# def compute_MAP(f, g, reg_param, pos_constraint=None, clipping_mask=None):
-#     # Define stopping criterion
-#     stop_crit = pyxst.MaxIter(int(1e4)) | (pyxst.RelError(1e-5))
-#     # define starting point (backprojection)
-#     back_projection = f.forward_model_linop.T(f.noisy_tomo_data.reshape(-1))
-#     if (pos_constraint is not None) or ('Mfi' in g._name) or (clipping_mask is not None):
-#         # apply projected gradient descent (PGD) algorithm
-#         obj = f + reg_param * g
-#         obj.diff_lipschitz = f.diff_lipschitz + reg_param * g.diff_lipschitz
-#         # compute MAP
-#         solver = PGD(f=obj, g=pos_constraint, verbosity=1000)
-#         if clipping_mask is None:
-#             solver.fit(x0=back_projection, stop_crit=stop_crit, acceleration=True, tau=1 / obj.diff_lipschitz, d=3)
-#         else:
-#             solver.fit(x0=back_projection, stop_crit=stop_crit, acceleration=True, tau=1 / obj.diff_lipschitz, d=3, mode=pxa.SolverMode.MANUAL)
-#             for step in solver.steps():
-#                 step["x"] = clipping_mask * step["x"]
-#             return step["x"]
-#     else:
-#         # apply conjugate gradient (CG) algorithm
-#         cg_op = (1 / f.sigma_err**2) * f.forward_model_linop.T * f.forward_model_linop + reg_param * g._grad_matrix_based
-#         # compute MAP
-#         solver = CG(A=cg_op, verbosity=1000)
-#         back_projection = np.expand_dims(back_projection,0)
-#         solver.fit(x0=back_projection, b=1 / f.sigma_err ** 2 * back_projection, stop_crit=stop_crit)
-#     # return MAP
-#     return solver.solution()
-
 def compute_MAP(f, g, reg_param, with_pos_constraint=False, clipping_mask=None, show_progress=True):
     # define proximable term if needed
     prox_term = None
