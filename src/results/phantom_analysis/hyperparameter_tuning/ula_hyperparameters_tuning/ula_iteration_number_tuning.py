@@ -3,12 +3,8 @@ import os
 import copy
 import time
 import sys
-
-import pyxu.abc as pxa
-import pyxu.opt.stop as pyxst
-from pyxu.opt.solver import PGD, CG
 import pyxu.operator as pyxop
-from pyxu.experimental.sampler._sampler import ULA, MYULA
+from pyxu.experimental.sampler._sampler import ULA
 from pyxu.experimental.sampler.statistics import OnlineMoment, OnlineVariance
 
 from src.tomo_fusion.reg_param_est import ProxFuncMoreau
@@ -24,7 +20,6 @@ def run_ula_checkpoints(reg_param,
             saving_dir,
             phantom_indices,
             burn_in,
-            #train_indices,
             with_pos_constraint=False,
             clip_iterations=None,
             samples=int(1e6),
@@ -131,9 +126,6 @@ def run_ula_checkpoints(reg_param,
 
 
 if __name__ == '__main__':
-    # run reg_param tuning routine on training phantoms
-    #argv = sys.argv
-    #phantom_id = int(argv[1])
 
     argv = sys.argv
     if len(argv) == 1:
@@ -148,27 +140,14 @@ if __name__ == '__main__':
         raise ValueError("Number of passed arguments must be either 1, 2 or 3")
 
     # define directory where phantoms are stored
-    phantom_dir = '../../../dataset_generation/sxr_samples_fine_anisotropic_new_bounds'
+    phantom_dir = '../../../dataset_generation/sxr_samples'
 
-    # # reg_param_tuning directory
-    # reg_param_tuning_dir = '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/'
-    # sigma_err = np.load(
-    #     '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/sigma_err.npy')
-    # reg_param_mean = np.load(
-    #     '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_mean.npy')
-    # reg_param_median = np.load(
-    #     '../../../dataset_generation/hyperparam_tuning/reg_param_tuning_fine_anisotropic_newbounds_sigma005/reg_param_median.npy')
-    # # saving directory
-    # saving_dir = 'hyperparam_tuning/ula_iterations_number_tuning/'
-    # reg_param_tuning directory
-    reg_param_tuning_dir = '../prior_hyperparameters_tuning/tuning_data/reg_param_tuning_sigma005005/'
-    sigma_err = np.load(reg_param_tuning_dir + 'sigma_err.npy')
-    reg_param_median = np.load(reg_param_tuning_dir + 'reg_param_median.npy')
+    sigma_err = np.load('../hyperparameter_tuning/prior_hyperparameters_tuning/tuning_data/reg_param_tuning_sigma005/sigma_err.npy')
+    reg_param_median = 0.1
     # saving directory
-    saving_dir = 'ula_iterations_number_tuning_sigma005005/'
+    saving_dir = 'ula_iterations_number_tuning_sigma005/'
     if not os.path.isdir(saving_dir):
         os.mkdir(saving_dir)
-    #train_indices = np.arange(900, 910)
     run_ula_checkpoints(reg_param=reg_param_median, phantom_dir=phantom_dir, saving_dir=saving_dir,
                         phantom_indices=phantom_indices,
                         burn_in=int(1e3),
