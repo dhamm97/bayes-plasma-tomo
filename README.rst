@@ -92,4 +92,4 @@ Hopefully the provided instructions will be enough, but if you encounter any pro
 Cite us
 ------
 
-If any of this was useful for your own research, you can cite our `paper <https://arxiv.org/abs/2506.20232>`_ !
+If any of this was useful for your own research, you can cite our `paper <https://iopscience.iop.org/article/10.1088/1361-6587/ae1708>`_ !
