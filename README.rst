@@ -6,8 +6,8 @@ Repository for bayesian tomography paper
 
 This repository provides open access to all the computational routines implemented by our paper
 "Tomography for Plasma Imaging: a Unifying Framework for Bayesian Inference". The paper was recently
-submitted for publication. In the meanwhile, the arXiv version of this paper
-can be found `here <https://arxiv.org/abs/2506.20232>`_ .
+accepted and published in Plasma Physics and Controlled Fusion (PPCF). It can be found `here <https://iopscience.iop.org/article/10.1088/1361-6587/ae1708>`_ .
+The arXiv version, instead, is available `here <https://arxiv.org/abs/2506.20232>`_ .
 
 The code here provided can be used to reproduce all the results presented in the paper.
 
